@@ -92,11 +92,15 @@ class BoardViewCommands:
             plot_opts = plotter.GetPlotOptions()
             plot_opts.SetOutputDirectory(str(Path(self.board.GetFileName()).parent))
             plot_opts.SetScale(1)
-            plot_opts.SetMirror(False)
+            should_mirror = False
+            plot_opts.SetMirror(should_mirror)
             # Note: SetExcludeEdgeLayer() removed in KiCAD 9.0 - default behavior includes all layers
-            plot_opts.SetPlotFrameRef(False)
-            plot_opts.SetPlotValue(True)
-            plot_opts.SetPlotReference(True)
+            include_frame_ref = False
+            plot_opts.SetPlotFrameRef(include_frame_ref)
+            plot_values = True
+            plot_opts.SetPlotValue(plot_values)
+            plot_references = True
+            plot_opts.SetPlotReference(plot_references)
 
             # Plot to SVG first (for vector output)
             # Note: KiCAD 9.0 prepends the project name to the filename, so we use GetPlotFileName() to get the actual path

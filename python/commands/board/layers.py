@@ -67,7 +67,8 @@ class BoardLayerCommands:
             layer_stack.SetLayerType(layer_id, self._get_layer_type(layer_type))
 
             # Enable the layer
-            self.board.SetLayerEnabled(layer_id, True)
+            enabled = True
+            self.board.SetLayerEnabled(layer_id, enabled)
 
             return {
                 "success": True,

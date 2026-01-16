@@ -56,7 +56,8 @@ class ExportCommands:
         plot_opts.SetUseGerberProtelExtensions(params.get("useProtelExtensions", False))
         plot_opts.SetUseAuxOrigin(params.get("useAuxOrigin", False))
         plot_opts.SetCreateGerberJobFile(params.get("generateMapFile", False))
-        plot_opts.SetSubtractMaskFromSilk(True)
+        subtract_mask_from_silk = True
+        plot_opts.SetSubtractMaskFromSilk(subtract_mask_from_silk)
 
         return plotter
 
@@ -268,8 +269,10 @@ class ExportCommands:
             plot_opts.SetOutputDirectory(str(output_path.parent))
             plot_opts.SetFormat(pcbnew.PLOT_FORMAT_PDF)
             plot_opts.SetPlotFrameRef(frame_reference)
-            plot_opts.SetPlotValue(True)
-            plot_opts.SetPlotReference(True)
+            plot_values = True
+            plot_opts.SetPlotValue(plot_values)
+            plot_references = True
+            plot_opts.SetPlotReference(plot_references)
             plot_opts.SetBlackAndWhite(black_and_white)
 
             # KiCAD 9.0 page size handling:
@@ -278,11 +281,14 @@ class ExportCommands:
             # - For other sizes, KiCAD auto-scales to fit the board
             # - SetAutoScale(True) enables automatic scaling to fit page
             if page_size == "A4":
-                plot_opts.SetA4Output(True)
+                use_a4 = True
+                plot_opts.SetA4Output(use_a4)
             else:
                 # For non-A4 sizes, disable A4 forcing and use auto-scale
-                plot_opts.SetA4Output(False)
-                plot_opts.SetAutoScale(True)
+                use_a4 = False
+                plot_opts.SetA4Output(use_a4)
+                auto_scale = True
+                plot_opts.SetAutoScale(auto_scale)
                 # Note: KiCAD 9.0 doesn't support explicit page size selection
                 # for formats other than A4. The PDF will auto-scale to fit.
                 logger.warning(
