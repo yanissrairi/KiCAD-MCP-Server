@@ -36,6 +36,63 @@ class ExportCommands:
         """
         self.board = board
 
+    def _setup_gerber_plotter(
+        self, output_path: Path, params: dict[str, Any]
+    ) -> pcbnew.PLOT_CONTROLLER:
+        """Setup Gerber plot controller with options.
+
+        Args:
+            output_path: Output directory path
+            params: Export parameters
+
+        Returns:
+            Configured plot controller
+        """
+        plotter = pcbnew.PLOT_CONTROLLER(self.board)
+        plot_opts = plotter.GetPlotOptions()
+
+        plot_opts.SetOutputDirectory(str(output_path))
+        plot_opts.SetFormat(pcbnew.PLOT_FORMAT_GERBER)
+        plot_opts.SetUseGerberProtelExtensions(params.get("useProtelExtensions", False))
+        plot_opts.SetUseAuxOrigin(params.get("useAuxOrigin", False))
+        plot_opts.SetCreateGerberJobFile(params.get("generateMapFile", False))
+        plot_opts.SetSubtractMaskFromSilk(True)
+
+        return plotter
+
+    def _plot_gerber_layers(
+        self, plotter: pcbnew.PLOT_CONTROLLER, layers: list[str]
+    ) -> list[str]:
+        """Plot Gerber layers.
+
+        Args:
+            plotter: Plot controller
+            layers: List of layer names to plot (empty for all)
+
+        Returns:
+            List of plotted layer names
+        """
+        plotted_layers = []
+
+        if layers:
+            # Plot specific layers
+            for layer_name in layers:
+                layer_id = self.board.GetLayerID(layer_name)
+                if layer_id >= _VALID_LAYER_ID:
+                    plotter.SetLayer(layer_id)
+                    plotter.PlotLayer()
+                    plotted_layers.append(layer_name)
+        else:
+            # Plot all enabled layers
+            for layer_id in range(pcbnew.PCB_LAYER_ID_COUNT):
+                if self.board.IsLayerEnabled(layer_id):
+                    layer_name = self.board.GetLayerName(layer_id)
+                    plotter.SetLayer(layer_id)
+                    plotter.PlotLayer()
+                    plotted_layers.append(layer_name)
+
+        return plotted_layers
+
     def export_gerber(self, params: dict[str, Any]) -> dict[str, Any]:
         """Export Gerber files.
 
@@ -54,12 +111,6 @@ class ExportCommands:
                 }
 
             output_dir = params.get("outputDir")
-            layers: list[str] = params.get("layers", [])
-            use_protel_extensions: bool = params.get("useProtelExtensions", False)
-            generate_drill_files: bool = params.get("generateDrillFiles", True)
-            generate_map_file: bool = params.get("generateMapFile", False)
-            use_aux_origin: bool = params.get("useAuxOrigin", False)
-
             if not output_dir:
                 return {
                     "success": False,
@@ -67,42 +118,17 @@ class ExportCommands:
                     "errorDetails": "outputDir parameter is required",
                 }
 
-            # Create output directory if it doesn't exist
+            # Create output directory
             output_path = Path(output_dir).expanduser().resolve()
             output_path.mkdir(parents=True, exist_ok=True)
 
-            # Create plot controller
-            plotter = pcbnew.PLOT_CONTROLLER(self.board)
-
-            # Set up plot options
-            plot_opts = plotter.GetPlotOptions()
-            plot_opts.SetOutputDirectory(str(output_path))
-            plot_opts.SetFormat(pcbnew.PLOT_FORMAT_GERBER)
-            plot_opts.SetUseGerberProtelExtensions(use_protel_extensions)
-            plot_opts.SetUseAuxOrigin(use_aux_origin)
-            plot_opts.SetCreateGerberJobFile(generate_map_file)
-            plot_opts.SetSubtractMaskFromSilk(True)
-
-            # Plot specified layers or all copper layers
-            plotted_layers = []
-            if layers:
-                for layer_name in layers:
-                    layer_id = self.board.GetLayerID(layer_name)
-                    if layer_id >= _VALID_LAYER_ID:
-                        plotter.SetLayer(layer_id)
-                        plotter.PlotLayer()
-                        plotted_layers.append(layer_name)
-            else:
-                for layer_id in range(pcbnew.PCB_LAYER_ID_COUNT):
-                    if self.board.IsLayerEnabled(layer_id):
-                        layer_name = self.board.GetLayerName(layer_id)
-                        plotter.SetLayer(layer_id)
-                        plotter.PlotLayer()
-                        plotted_layers.append(layer_name)
+            # Setup plotter and export
+            plotter = self._setup_gerber_plotter(output_path, params)
+            plotted_layers = self._plot_gerber_layers(plotter, params.get("layers", []))
 
             # Generate drill files if requested
             drill_files = []
-            if generate_drill_files:
+            if params.get("generateDrillFiles", True):
                 drill_files = self._generate_drill_files(output_path)
 
             return {
@@ -111,7 +137,7 @@ class ExportCommands:
                 "files": {
                     "gerber": plotted_layers,
                     "drill": drill_files,
-                    "map": ["job.gbrjob"] if generate_map_file else [],
+                    "map": ["job.gbrjob"] if params.get("generateMapFile", False) else [],
                 },
                 "outputDir": str(output_path),
             }
