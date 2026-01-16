@@ -1,5 +1,4 @@
-"""
-IPC API Backend (KiCAD 9.0+)
+"""IPC API Backend (KiCAD 9.0+)
 
 Uses the official kicad-python library for inter-process communication
 with a running KiCAD instance. This enables REAL-TIME UI synchronization.
@@ -15,15 +14,11 @@ Key Benefits over SWIG:
 """
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Callable
+from typing import Any
 
-from kicad_api.base import (
-    KiCADBackend,
-    BoardAPI,
-    ConnectionError,
-    APINotAvailableError
-)
+from kicad_api.base import APINotAvailableError, BoardAPI, KiCADBackend, KiCADConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +28,7 @@ INCH_TO_NM = 25_400_000
 
 
 class IPCBackend(KiCADBackend):
-    """
-    KiCAD IPC API backend for real-time UI synchronization.
+    """KiCAD IPC API backend for real-time UI synchronization.
 
     Communicates with KiCAD via Protocol Buffers over UNIX sockets.
     Requires KiCAD 9.0+ to be running with IPC enabled.
@@ -47,11 +41,10 @@ class IPCBackend(KiCADBackend):
         self._kicad = None
         self._connected = False
         self._version = None
-        self._on_change_callbacks: List[Callable] = []
+        self._on_change_callbacks: list[Callable] = []
 
-    def connect(self, socket_path: Optional[str] = None) -> bool:
-        """
-        Connect to running KiCAD instance via IPC.
+    def connect(self, socket_path: str | None = None) -> bool:
+        """Connect to running KiCAD instance via IPC.
 
         Args:
             socket_path: Optional socket path. If not provided, will try common locations.
@@ -76,8 +69,8 @@ class IPCBackend(KiCADBackend):
             else:
                 # Common socket locations
                 socket_paths_to_try = [
-                    'ipc:///tmp/kicad/api.sock',  # Linux default
-                    f'ipc:///run/user/{os.getuid()}/kicad/api.sock',  # XDG runtime
+                    "ipc:///tmp/kicad/api.sock",  # Linux default
+                    f"ipc:///run/user/{os.getuid()}/kicad/api.sock",  # XDG runtime
                     None  # Let kipy auto-detect
                 ]
 
@@ -101,7 +94,7 @@ class IPCBackend(KiCADBackend):
                     continue
             else:
                 # None of the paths worked
-                raise ConnectionError(f"Could not connect to KiCAD IPC: {last_error}")
+                raise KiCADConnectionError(f"Could not connect to KiCAD IPC: {last_error}")
 
             # Get version info
             self._version = self._get_kicad_version()
@@ -121,7 +114,7 @@ class IPCBackend(KiCADBackend):
                 "Ensure KiCAD is running with IPC enabled: "
                 "Preferences > Plugins > Enable IPC API Server"
             )
-            raise ConnectionError(f"IPC connection failed: {e}") from e
+            raise KiCADConnectionError(f"IPC connection failed: {e}") from e
 
     def _get_kicad_version(self) -> str:
         """Get KiCAD version string."""
@@ -159,7 +152,7 @@ class IPCBackend(KiCADBackend):
         """Register a callback to be called when changes are made."""
         self._on_change_callbacks.append(callback)
 
-    def _notify_change(self, change_type: str, details: Dict[str, Any]) -> None:
+    def _notify_change(self, change_type: str, details: dict[str, Any]) -> None:
         """Notify registered callbacks of a change."""
         for callback in self._on_change_callbacks:
             try:
@@ -168,15 +161,14 @@ class IPCBackend(KiCADBackend):
                 logger.warning(f"Change callback error: {e}")
 
     # Project Operations
-    def create_project(self, path: Path, name: str) -> Dict[str, Any]:
-        """
-        Create a new KiCAD project.
+    def create_project(self, path: Path, name: str) -> dict[str, Any]:
+        """Create a new KiCAD project.
 
         Note: The IPC API doesn't directly create projects.
         Projects must be created through the UI or file system.
         """
         if not self.is_connected():
-            raise ConnectionError("Not connected to KiCAD")
+            raise KiCADConnectionError("Not connected to KiCAD")
 
         # IPC API doesn't have project creation - use file-based approach
         logger.warning(
@@ -194,10 +186,10 @@ class IPCBackend(KiCADBackend):
             "attempted_name": name,
         }
 
-    def open_project(self, path: Path) -> Dict[str, Any]:
+    def open_project(self, path: Path) -> dict[str, Any]:
         """Open existing project via IPC."""
         if not self.is_connected():
-            raise ConnectionError("Not connected to KiCAD")
+            raise KiCADConnectionError("Not connected to KiCAD")
 
         try:
             # Check for open documents
@@ -227,10 +219,10 @@ class IPCBackend(KiCADBackend):
                 "errorDetails": str(e)
             }
 
-    def save_project(self, path: Optional[Path] = None) -> Dict[str, Any]:
+    def save_project(self, path: Path | None = None) -> dict[str, Any]:
         """Save current project via IPC."""
         if not self.is_connected():
-            raise ConnectionError("Not connected to KiCAD")
+            raise KiCADConnectionError("Not connected to KiCAD")
 
         try:
             board = self._kicad.get_board()
@@ -261,14 +253,13 @@ class IPCBackend(KiCADBackend):
     def get_board(self) -> BoardAPI:
         """Get board API for real-time manipulation."""
         if not self.is_connected():
-            raise ConnectionError("Not connected to KiCAD")
+            raise KiCADConnectionError("Not connected to KiCAD")
 
         return IPCBoardAPI(self._kicad, self._notify_change)
 
 
 class IPCBoardAPI(BoardAPI):
-    """
-    Board API implementation for IPC backend.
+    """Board API implementation for IPC backend.
 
     All changes made through this API appear immediately in the KiCAD UI.
     Uses transactions for proper undo/redo support.
@@ -287,7 +278,7 @@ class IPCBoardAPI(BoardAPI):
                 self._board = self._kicad.get_board()
             except Exception as e:
                 logger.error(f"Failed to get board: {e}")
-                raise ConnectionError(f"No board open in KiCAD: {e}")
+                raise KiCADConnectionError(f"No board open in KiCAD: {e}")
         return self._board
 
     def begin_transaction(self, description: str = "MCP Operation") -> None:
@@ -324,8 +315,7 @@ class IPCBoardAPI(BoardAPI):
             return False
 
     def set_size(self, width: float, height: float, unit: str = "mm") -> bool:
-        """
-        Set board size.
+        """Set board size.
 
         Note: Board size in KiCAD is typically defined by the board outline,
         not a direct size property. This method may need to create/modify
@@ -334,8 +324,8 @@ class IPCBoardAPI(BoardAPI):
         try:
             from kipy.board_types import BoardRectangle
             from kipy.geometry import Vector2
-            from kipy.util.units import from_mm
             from kipy.proto.board.board_types_pb2 import BoardLayer
+            from kipy.util.units import from_mm
 
             board = self._get_board()
 
@@ -367,7 +357,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to set board size: {e}")
             return False
 
-    def get_size(self) -> Dict[str, float]:
+    def get_size(self) -> dict[str, float]:
         """Get current board size from bounding box."""
         try:
             board = self._get_board()
@@ -381,8 +371,8 @@ class IPCBoardAPI(BoardAPI):
             # Find bounding box of edge cuts
             from kipy.util.units import to_mm
 
-            min_x = min_y = float('inf')
-            max_x = max_y = float('-inf')
+            min_x = min_y = float("inf")
+            max_x = max_y = float("-inf")
 
             for shape in shapes:
                 # Check if on Edge.Cuts layer
@@ -393,7 +383,7 @@ class IPCBoardAPI(BoardAPI):
                     max_x = max(max_x, bbox.max.x)
                     max_y = max(max_y, bbox.max.y)
 
-            if min_x == float('inf'):
+            if min_x == float("inf"):
                 return {"width": 0, "height": 0, "unit": "mm"}
 
             return {
@@ -424,7 +414,7 @@ class IPCBoardAPI(BoardAPI):
         )
         return False
 
-    def get_enabled_layers(self) -> List[str]:
+    def get_enabled_layers(self) -> list[str]:
         """Get list of enabled layers."""
         try:
             board = self._get_board()
@@ -434,7 +424,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to get enabled layers: {e}")
             return []
 
-    def list_components(self) -> List[Dict[str, Any]]:
+    def list_components(self) -> list[dict[str, Any]]:
         """List all components (footprints) on the board."""
         try:
             from kipy.util.units import to_mm
@@ -456,8 +446,8 @@ class IPCBoardAPI(BoardAPI):
                             "unit": "mm"
                         },
                         "rotation": fp.orientation.degrees if fp.orientation else 0,
-                        "layer": str(fp.layer) if hasattr(fp, 'layer') else "F.Cu",
-                        "id": str(fp.id) if hasattr(fp, 'id') else ""
+                        "layer": str(fp.layer) if hasattr(fp, "layer") else "F.Cu",
+                        "id": str(fp.id) if hasattr(fp, "id") else ""
                     })
                 except Exception as e:
                     logger.warning(f"Error processing footprint: {e}")
@@ -479,8 +469,7 @@ class IPCBoardAPI(BoardAPI):
         layer: str = "F.Cu",
         value: str = ""
     ) -> bool:
-        """
-        Place a component on the board.
+        """Place a component on the board.
 
         The component appears immediately in the KiCAD UI.
 
@@ -507,20 +496,18 @@ class IPCBoardAPI(BoardAPI):
                 return self._place_loaded_footprint(
                     loaded_fp, reference, x, y, rotation, layer, value
                 )
-            else:
-                # Fallback: Create a basic placeholder footprint via IPC
-                logger.warning(f"Could not load footprint '{footprint}' from library, creating placeholder")
-                return self._place_placeholder_footprint(
-                    reference, footprint, x, y, rotation, layer, value
-                )
+            # Fallback: Create a basic placeholder footprint via IPC
+            logger.warning(f"Could not load footprint '{footprint}' from library, creating placeholder")
+            return self._place_placeholder_footprint(
+                reference, footprint, x, y, rotation, layer, value
+            )
 
         except Exception as e:
             logger.error(f"Failed to place component: {e}")
             return False
 
     def _load_footprint_from_library(self, footprint_path: str):
-        """
-        Load a footprint from the library using pcbnew SWIG API.
+        """Load a footprint from the library using pcbnew SWIG API.
 
         Args:
             footprint_path: Either "Library:FootprintName" or just "FootprintName"
@@ -532,8 +519,8 @@ class IPCBoardAPI(BoardAPI):
             import pcbnew
 
             # Parse library and footprint name
-            if ':' in footprint_path:
-                lib_name, fp_name = footprint_path.split(':', 1)
+            if ":" in footprint_path:
+                lib_name, fp_name = footprint_path.split(":", 1)
             else:
                 # Try to find the footprint in all libraries
                 lib_name = None
@@ -583,8 +570,7 @@ class IPCBoardAPI(BoardAPI):
         layer: str,
         value: str
     ) -> bool:
-        """
-        Place a loaded pcbnew footprint onto the board.
+        """Place a loaded pcbnew footprint onto the board.
 
         Uses SWIG to add the footprint, then notifies for IPC sync.
         """
@@ -603,7 +589,7 @@ class IPCBoardAPI(BoardAPI):
             try:
                 docs = self._kicad.get_open_documents()
                 for doc in docs:
-                    if hasattr(doc, 'path') and str(doc.path).endswith('.kicad_pcb'):
+                    if hasattr(doc, "path") and str(doc.path).endswith(".kicad_pcb"):
                         board_path = str(doc.path)
                         break
             except Exception as e:
@@ -680,16 +666,15 @@ class IPCBoardAPI(BoardAPI):
         layer: str,
         value: str
     ) -> bool:
-        """
-        Place a placeholder footprint when library loading fails.
+        """Place a placeholder footprint when library loading fails.
 
         Creates a basic footprint via IPC with just reference/value fields.
         """
         try:
             from kipy.board_types import Footprint
-            from kipy.geometry import Vector2, Angle
-            from kipy.util.units import from_mm
+            from kipy.geometry import Angle, Vector2
             from kipy.proto.board.board_types_pb2 import BoardLayer
+            from kipy.util.units import from_mm
 
             board = self._get_board()
 
@@ -732,10 +717,10 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to place placeholder component: {e}")
             return False
 
-    def move_component(self, reference: str, x: float, y: float, rotation: Optional[float] = None) -> bool:
+    def move_component(self, reference: str, x: float, y: float, rotation: float | None = None) -> bool:
         """Move a component to a new position (updates UI immediately)."""
         try:
-            from kipy.geometry import Vector2, Angle
+            from kipy.geometry import Angle, Vector2
             from kipy.util.units import from_mm
 
             board = self._get_board()
@@ -813,18 +798,17 @@ class IPCBoardAPI(BoardAPI):
         end_y: float,
         width: float = 0.25,
         layer: str = "F.Cu",
-        net_name: Optional[str] = None
+        net_name: str | None = None
     ) -> bool:
-        """
-        Add a track (trace) to the board.
+        """Add a track (trace) to the board.
 
         The track appears immediately in the KiCAD UI.
         """
         try:
             from kipy.board_types import Track
             from kipy.geometry import Vector2
-            from kipy.util.units import from_mm
             from kipy.proto.board.board_types_pb2 import BoardLayer
+            from kipy.util.units import from_mm
 
             board = self._get_board()
 
@@ -877,19 +861,18 @@ class IPCBoardAPI(BoardAPI):
         y: float,
         diameter: float = 0.8,
         drill: float = 0.4,
-        net_name: Optional[str] = None,
+        net_name: str | None = None,
         via_type: str = "through"
     ) -> bool:
-        """
-        Add a via to the board.
+        """Add a via to the board.
 
         The via appears immediately in the KiCAD UI.
         """
         try:
             from kipy.board_types import Via
             from kipy.geometry import Vector2
-            from kipy.util.units import from_mm
             from kipy.proto.board.board_types_pb2 import ViaType
+            from kipy.util.units import from_mm
 
             board = self._get_board()
 
@@ -964,9 +947,9 @@ class IPCBoardAPI(BoardAPI):
         """
         try:
             from kipy.board_types import BoardText
-            from kipy.geometry import Vector2, Angle
-            from kipy.util.units import from_mm
+            from kipy.geometry import Angle, Vector2
             from kipy.proto.board.board_types_pb2 import BoardLayer
+            from kipy.util.units import from_mm
 
             # Warn if non-default size is requested
             default_size = 1.0
@@ -1013,7 +996,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to add text: {e}")
             return False
 
-    def get_tracks(self) -> List[Dict[str, Any]]:
+    def get_tracks(self) -> list[dict[str, Any]]:
         """Get all tracks on the board."""
         try:
             from kipy.util.units import to_mm
@@ -1036,7 +1019,7 @@ class IPCBoardAPI(BoardAPI):
                         "width": to_mm(track.width),
                         "layer": str(track.layer),
                         "net": track.net.name if track.net else "",
-                        "id": str(track.id) if hasattr(track, 'id') else ""
+                        "id": str(track.id) if hasattr(track, "id") else ""
                     })
                 except Exception as e:
                     logger.warning(f"Error processing track: {e}")
@@ -1048,7 +1031,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to get tracks: {e}")
             return []
 
-    def get_vias(self) -> List[Dict[str, Any]]:
+    def get_vias(self) -> list[dict[str, Any]]:
         """Get all vias on the board."""
         try:
             from kipy.util.units import to_mm
@@ -1068,7 +1051,7 @@ class IPCBoardAPI(BoardAPI):
                         "drill": to_mm(via.drill_diameter),
                         "net": via.net.name if via.net else "",
                         "type": str(via.type),
-                        "id": str(via.id) if hasattr(via, 'id') else ""
+                        "id": str(via.id) if hasattr(via, "id") else ""
                     })
                 except Exception as e:
                     logger.warning(f"Error processing via: {e}")
@@ -1080,7 +1063,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to get vias: {e}")
             return []
 
-    def get_nets(self) -> List[Dict[str, Any]]:
+    def get_nets(self) -> list[dict[str, Any]]:
         """Get all nets on the board."""
         try:
             board = self._get_board()
@@ -1091,7 +1074,7 @@ class IPCBoardAPI(BoardAPI):
                 try:
                     result.append({
                         "name": net.name,
-                        "code": net.code if hasattr(net, 'code') else 0
+                        "code": net.code if hasattr(net, "code") else 0
                     })
                 except Exception as e:
                     logger.warning(f"Error processing net: {e}")
@@ -1105,17 +1088,16 @@ class IPCBoardAPI(BoardAPI):
 
     def add_zone(
         self,
-        points: List[Dict[str, float]],
+        points: list[dict[str, float]],
         layer: str = "F.Cu",
-        net_name: Optional[str] = None,
+        net_name: str | None = None,
         clearance: float = 0.5,
         min_thickness: float = 0.25,
         priority: int = 0,
         fill_mode: str = "solid",
         name: str = ""
     ) -> bool:
-        """
-        Add a copper pour zone to the board.
+        """Add a copper pour zone to the board.
 
         The zone appears immediately in the KiCAD UI.
 
@@ -1131,9 +1113,9 @@ class IPCBoardAPI(BoardAPI):
         """
         try:
             from kipy.board_types import Zone, ZoneFillMode, ZoneType
-            from kipy.geometry import PolyLine, PolyLineNode, Vector2
-            from kipy.util.units import from_mm
+            from kipy.geometry import PolyLine, PolyLineNode
             from kipy.proto.board.board_types_pb2 import BoardLayer
+            from kipy.util.units import from_mm
 
             board = self._get_board()
 
@@ -1213,10 +1195,9 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to add zone: {e}")
             return False
 
-    def get_zones(self) -> List[Dict[str, Any]]:
+    def get_zones(self) -> list[dict[str, Any]]:
         """Get all zones on the board."""
         try:
-            from kipy.util.units import to_mm
 
             board = self._get_board()
             zones = board.get_zones()
@@ -1225,12 +1206,12 @@ class IPCBoardAPI(BoardAPI):
             for zone in zones:
                 try:
                     result.append({
-                        "name": zone.name if hasattr(zone, 'name') else "",
+                        "name": zone.name if hasattr(zone, "name") else "",
                         "net": zone.net.name if zone.net else "",
-                        "priority": zone.priority if hasattr(zone, 'priority') else 0,
-                        "layers": [str(l) for l in zone.layers] if hasattr(zone, 'layers') else [],
-                        "filled": zone.filled if hasattr(zone, 'filled') else False,
-                        "id": str(zone.id) if hasattr(zone, 'id') else ""
+                        "priority": zone.priority if hasattr(zone, "priority") else 0,
+                        "layers": [str(l) for l in zone.layers] if hasattr(zone, "layers") else [],
+                        "filled": zone.filled if hasattr(zone, "filled") else False,
+                        "id": str(zone.id) if hasattr(zone, "id") else ""
                     })
                 except Exception as e:
                     logger.warning(f"Error processing zone: {e}")
@@ -1253,7 +1234,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error(f"Failed to refill zones: {e}")
             return False
 
-    def get_selection(self) -> List[Dict[str, Any]]:
+    def get_selection(self) -> list[dict[str, Any]]:
         """Get currently selected items in the KiCAD UI."""
         try:
             board = self._get_board()
@@ -1263,7 +1244,7 @@ class IPCBoardAPI(BoardAPI):
             for item in selection:
                 result.append({
                     "type": type(item).__name__,
-                    "id": str(item.id) if hasattr(item, 'id') else ""
+                    "id": str(item.id) if hasattr(item, "id") else ""
                 })
 
             return result
@@ -1283,4 +1264,4 @@ class IPCBoardAPI(BoardAPI):
 
 
 # Export for factory
-__all__ = ['IPCBackend', 'IPCBoardAPI']
+__all__ = ["IPCBackend", "IPCBoardAPI"]
