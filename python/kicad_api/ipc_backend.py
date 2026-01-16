@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    import pcbnew
     from kipy import KiCad
 
 from kicad_api.base import (
@@ -601,7 +602,7 @@ class IPCBoardAPI(BoardAPI):
 
     def _place_loaded_footprint(
         self,
-        loaded_fp: Any,
+        loaded_fp: "pcbnew.FOOTPRINT",
         reference: str,
         x: float,
         y: float,
