@@ -231,8 +231,12 @@ class ComponentManager:
             # Generate new UUID
             new_symbol.uuid.value = str(uuid.uuid4())
 
-            # Append to schematic
-            schematic.symbol.append(new_symbol)
+            # NOTE: Do NOT call schematic.symbol.append(new_symbol) here!
+            # The clone() method in kicad-skip already appends the cloned symbol
+            # to the parent collection. Calling append() again causes a name collision
+            # in NamedElementCollection._named dict, which adds an underscore suffix
+            # to the reference (e.g., "R1" becomes "R1_"). This breaks connection lookup.
+
             logger.info(f"Successfully added component {reference} to schematic")
 
             return new_symbol

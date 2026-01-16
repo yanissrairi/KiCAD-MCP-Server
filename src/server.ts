@@ -37,7 +37,7 @@ import { registerDesignPrompts } from './prompts/design.js';
 
 /**
  * Find the Python executable to use
- * Prioritizes virtual environment if available, falls back to system Python
+ * Priority: KICAD_PYTHON env var > virtual environment > bundled KiCAD Python > system Python
  */
 function findPythonExecutable(scriptPath: string): string {
   const isWindows = process.platform === 'win32';
@@ -47,7 +47,13 @@ function findPythonExecutable(scriptPath: string): string {
   // Get the project root (parent of the python/ directory)
   const projectRoot = dirname(dirname(scriptPath));
 
-  // Check for virtual environment
+  // KICAD_PYTHON has highest priority - allows explicit override
+  if (process.env.KICAD_PYTHON) {
+    logger.info(`Using KICAD_PYTHON environment variable: ${process.env.KICAD_PYTHON}`);
+    return process.env.KICAD_PYTHON;
+  }
+
+  // Check for virtual environment (second priority)
   const venvPaths = [
     join(projectRoot, 'venv', isWindows ? 'Scripts' : 'bin', isWindows ? 'python.exe' : 'python'),
     join(projectRoot, '.venv', isWindows ? 'Scripts' : 'bin', isWindows ? 'python.exe' : 'python'),
@@ -58,12 +64,6 @@ function findPythonExecutable(scriptPath: string): string {
       logger.info(`Found virtual environment Python at: ${venvPath}`);
       return venvPath;
     }
-  }
-
-  // Allow override via KICAD_PYTHON environment variable (any platform)
-  if (process.env.KICAD_PYTHON) {
-    logger.info(`Using KICAD_PYTHON environment variable: ${process.env.KICAD_PYTHON}`);
-    return process.env.KICAD_PYTHON;
   }
 
   // Platform-specific KiCAD bundled Python detection

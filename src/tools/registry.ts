@@ -92,7 +92,8 @@ export const toolCategories: ToolCategory[] = [
       "add_schematic_net_label",
       "connect_to_net",
       "get_net_connections",
-      "generate_netlist"
+      "generate_netlist",
+      "get_schematic_info"
     ]
   },
   {

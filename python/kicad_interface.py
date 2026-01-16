@@ -358,6 +358,7 @@ class KiCADInterface:
             "connect_to_net": self._handle_connect_to_net,
             "get_net_connections": self._handle_get_net_connections,
             "generate_netlist": self._handle_generate_netlist,
+            "get_schematic_info": self._handle_get_schematic_info,
             "list_schematic_libraries": self._handle_list_schematic_libraries,
             "export_schematic_pdf": self._handle_export_schematic_pdf,
 
@@ -868,6 +869,32 @@ class KiCADInterface:
             return {"success": True, "netlist": netlist}
         except Exception as e:
             logger.error(f"Error generating netlist: {str(e)}")
+            return {"success": False, "message": str(e)}
+
+    def _handle_get_schematic_info(self, params):
+        """Get comprehensive schematic information for AI inspection"""
+        logger.info("Getting schematic info")
+        try:
+            from commands.schematic_info import get_schematic_info
+
+            schematic_path = params.get("schematicPath")
+            if not schematic_path:
+                return {"success": False, "message": "Schematic path is required"}
+
+            result = get_schematic_info(
+                schematic_path=schematic_path,
+                include_components=params.get("includeComponents", True),
+                include_nets=params.get("includeNets", True),
+                include_pin_details=params.get("includePinDetails", False),
+                include_unconnected=params.get("includeUnconnected", False),
+                component_filter=params.get("componentFilter"),
+                exclude_templates=params.get("excludeTemplates", True)
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Error getting schematic info: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {"success": False, "message": str(e)}
 
     def _handle_check_kicad_ui(self, params):

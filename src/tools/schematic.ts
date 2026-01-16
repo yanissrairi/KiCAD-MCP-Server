@@ -265,4 +265,104 @@ export function registerSchematicTools(server: McpServer, callKicadScript: Funct
       }
     }
   );
+
+  // Get schematic info - comprehensive inspection tool
+  server.tool(
+    "get_schematic_info",
+    "Get comprehensive information about a schematic including components, nets, and connectivity. Essential for AI to understand schematic state before making modifications.",
+    {
+      schematicPath: z.string().describe("Path to the .kicad_sch file"),
+      includeComponents: z.boolean().optional().default(true).describe("Include list of all components with positions and values"),
+      includeNets: z.boolean().optional().default(true).describe("Include all nets and their connections"),
+      includePinDetails: z.boolean().optional().default(false).describe("Include detailed pin information for each component"),
+      includeUnconnected: z.boolean().optional().default(false).describe("Find and list unconnected pins (ERC-like analysis)"),
+      componentFilter: z.string().optional().describe("Regex pattern to filter components by reference (e.g., 'R.*' for resistors, 'U[0-9]+' for ICs)"),
+      excludeTemplates: z.boolean().optional().default(true).describe("Exclude _TEMPLATE_ symbols from results")
+    },
+    async (args: {
+      schematicPath: string;
+      includeComponents?: boolean;
+      includeNets?: boolean;
+      includePinDetails?: boolean;
+      includeUnconnected?: boolean;
+      componentFilter?: string;
+      excludeTemplates?: boolean;
+    }) => {
+      const result = await callKicadScript("get_schematic_info", {
+        schematicPath: args.schematicPath,
+        includeComponents: args.includeComponents ?? true,
+        includeNets: args.includeNets ?? true,
+        includePinDetails: args.includePinDetails ?? false,
+        includeUnconnected: args.includeUnconnected ?? false,
+        componentFilter: args.componentFilter,
+        excludeTemplates: args.excludeTemplates ?? true
+      });
+
+      if (result.success && result.schematic) {
+        const sch = result.schematic;
+        const lines: string[] = [];
+
+        // Summary
+        lines.push(`=== Schematic: ${sch.path} ===`);
+        lines.push(`\nSummary:`);
+        lines.push(`  Components: ${sch.summary.totalComponents}`);
+        lines.push(`  Wires: ${sch.summary.totalWires}`);
+        lines.push(`  Nets: ${sch.summary.totalNets}`);
+        if (sch.summary.boundingBox) {
+          const bb = sch.summary.boundingBox;
+          lines.push(`  Bounding Box: (${bb.minX}, ${bb.minY}) to (${bb.maxX}, ${bb.maxY})`);
+        }
+
+        // Components
+        if (sch.components && sch.components.length > 0) {
+          lines.push(`\nComponents (${sch.components.length}):`);
+          for (const comp of sch.components) {
+            const pos = comp.position;
+            lines.push(`  ${comp.reference}: ${comp.value || '(no value)'} @ (${pos.x}, ${pos.y}, ${pos.rotation}°)`);
+            lines.push(`    Footprint: ${comp.footprint || 'none'}`);
+            lines.push(`    Library: ${comp.libId}`);
+
+            // Pin details if included
+            if (comp.pins && comp.pins.length > 0) {
+              lines.push(`    Pins:`);
+              for (const pin of comp.pins) {
+                lines.push(`      ${pin.number} (${pin.name}): ${pin.type} @ (${pin.position.x}, ${pin.position.y})`);
+              }
+            }
+          }
+        }
+
+        // Nets
+        if (sch.nets && sch.nets.length > 0) {
+          lines.push(`\nNets (${sch.nets.length}):`);
+          for (const net of sch.nets) {
+            const connections = net.connections.map((c: any) => `${c.component}/${c.pin}`).join(', ');
+            lines.push(`  ${net.name}: ${connections || '(no connections)'}`);
+          }
+        }
+
+        // Unconnected pins
+        if (sch.unconnectedPins && sch.unconnectedPins.length > 0) {
+          lines.push(`\nUnconnected Pins (${sch.unconnectedPins.length}):`);
+          for (const pin of sch.unconnectedPins) {
+            lines.push(`  ${pin.component}/${pin.pin} (${pin.pinName || pin.pinType}) @ (${pin.position.x}, ${pin.position.y})`);
+          }
+        }
+
+        return {
+          content: [{
+            type: "text",
+            text: lines.join('\n')
+          }]
+        };
+      } else {
+        return {
+          content: [{
+            type: "text",
+            text: `Failed to get schematic info: ${result.message || result.error || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
 }
