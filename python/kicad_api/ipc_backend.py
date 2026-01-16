@@ -295,7 +295,7 @@ class IPCBoardAPI(BoardAPI):
         self._notify = notify_callback
         self._current_commit = None
 
-    def _get_board(self):
+    def _get_board(self) -> Any:
         """Get board instance, connecting if needed."""
         if self._board is None:
             try:
@@ -531,7 +531,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error("Failed to place component: %s", e)
             return False
 
-    def _load_footprint_from_library(self, footprint_path: str):
+    def _load_footprint_from_library(self, footprint_path: str) -> Any | None:
         """Load a footprint from the library using pcbnew SWIG API.
 
         Args:
