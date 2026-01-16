@@ -1,71 +1,62 @@
-# Pre-commit hooks configuration
-# See https://pre-commit.com for more information
+default_language_version:
+  python: python3.12
 
 repos:
-  # Python code formatting
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
+  # Ruff - linter + formatter (replaces black, isort, flake8, etc.)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
     hooks:
-      - id: black
-        language_version: python3
-        files: ^python/
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
 
-  # Python import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  # Pyright - strict type checking
+  - repo: local
     hooks:
-      - id: isort
-        files: ^python/
-        args: ["--profile", "black"]
+      - id: pyright
+        name: pyright
+        entry: uv run pyright
+        language: system
+        types: [python]
+        pass_filenames: false
 
-  # Python type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.0
+  # Vulture - dead code detection
+  - repo: local
     hooks:
-      - id: mypy
-        files: ^python/
-        args: [--ignore-missing-imports]
+      - id: vulture
+        name: vulture
+        entry: uv run vulture python --min-confidence 80
+        language: system
+        types: [python]
+        pass_filenames: false
 
-  # Python linting
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
+  # Bandit - security linting
+  - repo: local
     hooks:
-      - id: flake8
-        files: ^python/
-        args: [--max-line-length=100, --extend-ignore=E203]
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -c pyproject.toml
+        language: system
+        types: [python]
+        pass_filenames: false
 
-  # TypeScript/JavaScript formatting
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.3
-    hooks:
-      - id: prettier
-        types_or: [javascript, typescript, json, yaml, markdown]
-        files: \.(ts|js|json|ya?ml|md)$
-
-  # General file checks
+  # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
-        args: [--maxkb=500]
-      - id: check-merge-conflict
+        args: ['--maxkb=500']
       - id: detect-private-key
 
-  # Python security checks
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+  # TypeScript/JS formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
     hooks:
-      - id: bandit
-        args: [-c, pyproject.toml]
-        files: ^python/
-
-  # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.37.0
-    hooks:
-      - id: markdownlint
-        args: [--fix]
+      - id: prettier
+        types_or: [typescript, javascript, json, yaml, markdown]
