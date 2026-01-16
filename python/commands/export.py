@@ -185,10 +185,12 @@ class ExportCommands:
                 check=False,
             )
             if result.returncode == 0:
-                # Get list of generated drill files
-                for file_path in output_path.iterdir():
-                    if file_path.suffix in {".drl", ".cnc"}:
-                        drill_files.append(file_path.name)
+                # Get list of generated drill files - use list.extend for better performance
+                drill_files.extend(
+                    file_path.name
+                    for file_path in output_path.iterdir()
+                    if file_path.suffix in {".drl", ".cnc"}
+                )
             else:
                 logger.warning("Drill file generation failed: %s", result.stderr)
         except subprocess.TimeoutExpired:
@@ -816,15 +818,13 @@ class ExportCommands:
         """
         html = ["<html><head><title>Bill of Materials</title></head><body>"]
         html.append("<table border='1'><tr>")
-        # Headers
-        for key in components[0]:
-            html.append(f"<th>{key}</th>")
+        # Headers - use list.extend for better performance
+        html.extend(f"<th>{key}</th>" for key in components[0])
         html.append("</tr>")
-        # Data
+        # Data - use list.extend for better performance
         for comp in components:
             html.append("<tr>")
-            for value in comp.values():
-                html.append(f"<td>{value}</td>")
+            html.extend(f"<td>{value}</td>" for value in comp.values())
             html.append("</tr>")
         html.append("</table></body></html>")
         path.write_text("\n".join(html))

@@ -38,17 +38,16 @@ class BoardViewCommands:
             width_mm = width_nm / 1000000
             height_mm = height_nm / 1000000
 
-            # Get layer information
-            layers = []
-            for layer_id in range(pcbnew.PCB_LAYER_ID_COUNT):
-                if self.board.IsLayerEnabled(layer_id):
-                    layers.append(
-                        {
-                            "name": self.board.GetLayerName(layer_id),
-                            "type": self._get_layer_type_name(self.board.GetLayerType(layer_id)),
-                            "id": layer_id,
-                        }
-                    )
+            # Get layer information - use list comprehension for better performance
+            layers = [
+                {
+                    "name": self.board.GetLayerName(layer_id),
+                    "type": self._get_layer_type_name(self.board.GetLayerType(layer_id)),
+                    "id": layer_id,
+                }
+                for layer_id in range(pcbnew.PCB_LAYER_ID_COUNT)
+                if self.board.IsLayerEnabled(layer_id)
+            ]
 
             return {
                 "success": True,

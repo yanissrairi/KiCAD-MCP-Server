@@ -388,7 +388,10 @@ class ComponentManager:
         # This is a basic search, could be expanded to use regex or more complex logic
         matching_components = []
         query_lower = query.lower()
-        for symbol in schematic.symbol:
+        # Use list comprehension for better performance
+        return [
+            symbol
+            for symbol in schematic.symbol
             if (
                 query_lower in symbol.reference.lower()
                 or query_lower in symbol.name.lower()
@@ -396,9 +399,8 @@ class ComponentManager:
                     hasattr(symbol.property, "Value")
                     and query_lower in symbol.property.Value.value.lower()
                 )
-            ):
-                matching_components.append(symbol)
-        return matching_components
+            )
+        ]
 
     @staticmethod
     def get_all_components(schematic: Schematic) -> list[Any]:

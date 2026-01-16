@@ -128,10 +128,9 @@ class WireManager:
 
             sch_data = sexpdata.loads(sch_content)
 
-            # Create pts list
+            # Create pts list - use list.extend for better performance
             pts_list: list[Symbol | list[Symbol | float]] = [Symbol("pts")]
-            for point in points:
-                pts_list.append([Symbol("xy"), point[0], point[1]])
+            pts_list.extend([Symbol("xy"), point[0], point[1]] for point in points)
 
             # Create wire S-expression with multiple points
             wire_sexp = [

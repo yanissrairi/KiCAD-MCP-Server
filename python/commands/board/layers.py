@@ -133,18 +133,18 @@ class BoardLayerCommands:
                     "errorDetails": "Load or create a board first",
                 }
 
-            layers = []
-            for layer_id in range(pcbnew.PCB_LAYER_ID_COUNT):
-                if self.board.IsLayerEnabled(layer_id):
-                    layers.append(
-                        {
-                            "name": self.board.GetLayerName(layer_id),
-                            "type": self._get_layer_type_name(self.board.GetLayerType(layer_id)),
-                            "id": layer_id,
-                            # Note: isActive removed - GetActiveLayer() doesn't exist in KiCAD 9.0
-                            # Active layer is a UI concept not applicable to headless scripting
-                        }
-                    )
+            # Use list comprehension for better performance
+            layers = [
+                {
+                    "name": self.board.GetLayerName(layer_id),
+                    "type": self._get_layer_type_name(self.board.GetLayerType(layer_id)),
+                    "id": layer_id,
+                    # Note: isActive removed - GetActiveLayer() doesn't exist in KiCAD 9.0
+                    # Active layer is a UI concept not applicable to headless scripting
+                }
+                for layer_id in range(pcbnew.PCB_LAYER_ID_COUNT)
+                if self.board.IsLayerEnabled(layer_id)
+            ]
 
             return {"success": True, "layers": layers}
 

@@ -1268,14 +1268,14 @@ class IPCBoardAPI(BoardAPI):
             board = self._get_board()
             selection = board.get_selection()
 
-            result = []
-            for item in selection:
-                result.append({
+            # Use list comprehension for better performance
+            return [
+                {
                     "type": type(item).__name__,
-                    "id": str(item.id) if hasattr(item, "id") else ""
-                })
-
-            return result
+                    "id": str(item.id) if hasattr(item, "id") else "",
+                }
+                for item in selection
+            ]
         except Exception as e:
             logger.error("Failed to get selection: %s", e)
             return []

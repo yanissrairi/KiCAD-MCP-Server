@@ -357,13 +357,12 @@ class ConnectionManager:
             connected_wire_points: set[tuple[float, float]] = set()
             for wire in schematic.wire:
                 if hasattr(wire, "pts") and hasattr(wire.pts, "xy"):
-                    # Get all points in this wire (polyline)
-                    wire_points: list[list[float]] = []
-                    for point in wire.pts.xy:
-                        if hasattr(point, "value"):
-                            wire_points.append(
-                                [float(point.value[0]), float(point.value[1])]
-                            )
+                    # Get all points in this wire (polyline) - use list comprehension
+                    wire_points: list[list[float]] = [
+                        [float(point.value[0]), float(point.value[1])]
+                        for point in wire.pts.xy
+                        if hasattr(point, "value")
+                    ]
 
                     # Check if any wire point touches a label
                     wire_connected = False
