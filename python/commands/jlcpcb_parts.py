@@ -171,7 +171,7 @@ class JLCPCBPartsManager:
         return "Extended"  # Default to Extended
 
     @staticmethod
-    def _normalize_lcsc_number(lcsc: Any) -> str:
+    def _normalize_lcsc_number(lcsc: int | str) -> str:
         """Normalize LCSC number to string format with C prefix.
 
         Args:

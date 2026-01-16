@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from skip import Schematic
+    from skip import Schematic, Symbol
 
     from commands.pin_locator import PinLocator as PinLocatorType
 
@@ -85,7 +85,7 @@ class ConnectionManager:
             return False
 
     @staticmethod
-    def get_pin_location(symbol: Any, pin_name: str) -> list[float] | None:
+    def get_pin_location(symbol: Symbol, pin_name: str) -> list[float] | None:
         """Get the absolute location of a pin on a symbol.
 
         Args:
@@ -211,7 +211,7 @@ class ConnectionManager:
         schematic: Schematic,
         net_name: str,
         position: list[float],
-    ) -> Any | None:
+    ) -> object | None:
         """Add a net label to the schematic.
 
         Args:

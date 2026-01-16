@@ -34,7 +34,7 @@ class DesignRuleCommands:
         self.board = board
 
     def _apply_design_rule_params(
-        self, design_settings: Any, params: dict[str, Any], scale: float
+        self, design_settings: pcbnew.BOARD_DESIGN_SETTINGS, params: dict[str, Any], scale: float
     ) -> None:
         """Apply design rule parameters to design settings.
 

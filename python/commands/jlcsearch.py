@@ -31,7 +31,7 @@ class JLCSearchClient:
         category: str = "components",
         limit: int = 100,
         offset: int = 0,
-        **filters: Any,
+        **filters: str | int | bool,
     ) -> list[dict[str, Any]]:
         """Search components in JLCSearch database.
 

@@ -20,6 +20,9 @@ from sexpdata import Symbol
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+# Type alias for S-expressions parsed by sexpdata
+SExpression = list | Symbol | str | int | float | None
+
 logger = logging.getLogger("kicad_interface")
 
 # S-expression property structure: [Symbol("property"), name, value, ...]
@@ -336,7 +339,7 @@ class DynamicSymbolLoader:
     # --- Private helper methods ---
 
     @staticmethod
-    def _is_symbol_element(item: Any) -> bool:
+    def _is_symbol_element(item: SExpression) -> bool:
         """Check if an item is a symbol element in parsed data."""
         return (
             isinstance(item, list)

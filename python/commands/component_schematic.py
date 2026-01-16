@@ -15,7 +15,7 @@ import uuid
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from skip import Schematic
+    from skip import Schematic, Symbol
 
     from commands.dynamic_symbol_loader import DynamicSymbolLoader
 
@@ -253,7 +253,7 @@ class ComponentManager:
         schematic: Schematic,
         component_def: dict[str, Any],
         schematic_path: Path | None = None,
-    ) -> Any:
+    ) -> Symbol:
         """Add a component to the schematic by cloning from template.
 
         Args:
@@ -423,7 +423,7 @@ class ComponentManager:
         return False
 
     @staticmethod
-    def get_component(schematic: Schematic, component_ref: str) -> Any | None:
+    def get_component(schematic: Schematic, component_ref: str) -> Symbol | None:
         """Get a component by reference designator.
 
         Args:
