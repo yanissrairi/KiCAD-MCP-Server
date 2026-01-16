@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import pcbnew
     from kipy import KiCad
+    from kipy.board import Board
 
 from kicad_api.base import (
     BoardAPI,
@@ -308,7 +309,7 @@ class IPCBoardAPI(BoardAPI):
         self._notify = notify_callback
         self._current_commit = None
 
-    def _get_board(self) -> Any:
+    def _get_board(self) -> "Board":
         """Get board instance, connecting if needed."""
         if self._board is None:
             try:
@@ -544,7 +545,7 @@ class IPCBoardAPI(BoardAPI):
             logger.error("Failed to place component: %s", e)
             return False
 
-    def _load_footprint_from_library(self, footprint_path: str) -> Any | None:
+    def _load_footprint_from_library(self, footprint_path: str) -> "pcbnew.FOOTPRINT | None":
         """Load a footprint from the library using pcbnew SWIG API.
 
         Args:
