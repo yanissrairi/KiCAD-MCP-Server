@@ -288,7 +288,88 @@ class RoutingCommands:
             logger.exception("Error adding via: %s", e)
             return {"success": False, "message": "Failed to add via", "errorDetails": str(e)}
 
-    def delete_trace(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
+    def _delete_trace_by_uuid(self, trace_uuid: str) -> dict[str, Any]:
+        """Delete a trace by its UUID.
+
+        Args:
+            trace_uuid: UUID of the track to delete.
+
+        Returns:
+            Success/failure dictionary.
+        """
+        track = self._find_track_by_uuid(trace_uuid)
+        
+        if not track:
+            return {
+                "success": False,
+                "message": "Track not found",
+                "errorDetails": f"Could not find track with UUID: {trace_uuid}",
+            }
+
+        self.board.Remove(track)
+        return {"success": True, "message": f"Deleted track: {trace_uuid}"}
+
+    def _delete_trace_by_position(self, position: dict[str, Any]) -> dict[str, Any]:
+        """Delete a trace by its position (finds closest track).
+
+        Args:
+            position: Position specification with x, y, and unit.
+
+        Returns:
+            Success/failure dictionary.
+        """
+        scale = 1000000 if position["unit"] == "mm" else 25400000  # mm or inch to nm
+        x_nm = int(position["x"] * scale)
+        y_nm = int(position["y"] * scale)
+        point = pcbnew.VECTOR2I(x_nm, y_nm)
+
+        closest_track, min_distance = self._find_closest_track(point)
+
+        if closest_track and min_distance < TRACK_SEARCH_RADIUS_NM:  # Within 1mm
+            self.board.Remove(closest_track)
+            return {"success": True, "message": "Deleted track at specified position"}
+        
+        return {
+            "success": False,
+            "message": "No track found",
+            "errorDetails": "No track found near specified position",
+        }
+
+    def _find_track_by_uuid(self, trace_uuid: str) -> pcbnew.PCB_TRACK | None:
+        """Find a track by its UUID.
+
+        Args:
+            trace_uuid: UUID string to search for.
+
+        Returns:
+            Track object if found, None otherwise.
+        """
+        for item in self.board.Tracks():
+            if str(item.m_Uuid) == trace_uuid:
+                return item
+        return None
+
+    def _find_closest_track(self, point: pcbnew.VECTOR2I) -> tuple[pcbnew.PCB_TRACK | None, float]:
+        """Find the track closest to a given point.
+
+        Args:
+            point: Point to search near.
+
+        Returns:
+            Tuple of (closest_track, min_distance). Track may be None if no tracks exist.
+        """
+        closest_track = None
+        min_distance = float("inf")
+        
+        for track in self.board.Tracks():
+            dist = self._point_to_track_distance(point, track)
+            if dist < min_distance:
+                min_distance = dist
+                closest_track = track
+        
+        return closest_track, min_distance
+
+    def delete_trace(self, params: dict[str, Any]) -> dict[str, Any]:
         """Delete a trace from the PCB."""
         try:
             if not self.board:
@@ -308,48 +389,11 @@ class RoutingCommands:
                     "errorDetails": "Either traceUuid or position must be provided",
                 }
 
-            # Find track by UUID
+            # Dispatch to appropriate deletion method
             if trace_uuid:
-                track = None
-                for item in self.board.Tracks():
-                    if str(item.m_Uuid) == trace_uuid:
-                        track = item
-                        break
-
-                if not track:
-                    return {
-                        "success": False,
-                        "message": "Track not found",
-                        "errorDetails": f"Could not find track with UUID: {trace_uuid}",
-                    }
-
-                self.board.Remove(track)
-                return {"success": True, "message": f"Deleted track: {trace_uuid}"}
-
-            # Find track by position
-            if position:
-                scale = 1000000 if position["unit"] == "mm" else 25400000  # mm or inch to nm
-                x_nm = int(position["x"] * scale)
-                y_nm = int(position["y"] * scale)
-                point = pcbnew.VECTOR2I(x_nm, y_nm)
-
-                # Find closest track
-                closest_track = None
-                min_distance = float("inf")
-                for track in self.board.Tracks():
-                    dist = self._point_to_track_distance(point, track)
-                    if dist < min_distance:
-                        min_distance = dist
-                        closest_track = track
-
-                if closest_track and min_distance < TRACK_SEARCH_RADIUS_NM:  # Within 1mm
-                    self.board.Remove(closest_track)
-                    return {"success": True, "message": "Deleted track at specified position"}
-                return {
-                    "success": False,
-                    "message": "No track found",
-                    "errorDetails": "No track found near specified position",
-                }
+                return self._delete_trace_by_uuid(trace_uuid)
+            
+            return self._delete_trace_by_position(position)
 
         except Exception as e:
             logger.exception("Error deleting trace: %s", e)
