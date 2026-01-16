@@ -37,7 +37,7 @@ class IPCBackend(KiCADBackend):
     without requiring manual reload.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize IPC backend in disconnected state.
 
         The backend must be explicitly connected via connect() before use.
@@ -283,7 +283,7 @@ class IPCBoardAPI(BoardAPI):
     Uses transactions for proper undo/redo support.
     """
 
-    def __init__(self, kicad_instance, notify_callback: Callable):
+    def __init__(self, kicad_instance, notify_callback: Callable) -> None:
         """Initialize board API with KiCAD instance and change callback.
 
         Args:
