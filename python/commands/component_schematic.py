@@ -82,8 +82,141 @@ class ComponentManager:
             cls._dynamic_loader = _DynamicSymbolLoader()
         return cls._dynamic_loader
 
+    @staticmethod
+    def _template_exists(schematic: Schematic, template_ref: str) -> bool:
+        """Check if template exists by iterating symbols (handles special characters).
+
+        Args:
+            schematic: Schematic object
+            template_ref: Template reference to search for
+
+        Returns:
+            True if template exists, False otherwise
+        """
+        for symbol in schematic.symbol:
+            if (
+                hasattr(symbol.property, "Reference")
+                and symbol.property.Reference.value == template_ref
+            ):
+                return True
+        return False
+
     @classmethod
-    def get_or_create_template(  # noqa: PLR0911
+    def _check_static_template(
+        cls, schematic: Schematic, comp_type: str
+    ) -> tuple[str, bool] | None:
+        """Check if component type has a static template.
+
+        Args:
+            schematic: Schematic object
+            comp_type: Component type
+
+        Returns:
+            Tuple of (template_ref, False) if found, None otherwise
+        """
+        if comp_type in cls.TEMPLATE_MAP:
+            template_ref = cls.TEMPLATE_MAP[comp_type]
+            # Verify template exists in schematic
+            if cls._template_exists(schematic, template_ref):
+                logger.debug("Using static template: %s", template_ref)
+                return (template_ref, False)
+        return None
+
+    @classmethod
+    def _check_existing_template(
+        cls, schematic: Schematic, comp_type: str, library: str | None
+    ) -> tuple[str, bool] | None:
+        """Check if dynamically loaded template already exists.
+
+        Args:
+            schematic: Schematic object
+            comp_type: Component type
+            library: Optional library name
+
+        Returns:
+            Tuple of (template_ref, False) if found, None otherwise
+        """
+        # Build potential template reference names
+        potential_refs: list[str] = []
+        if library:
+            potential_refs.append(f"_TEMPLATE_{library}_{comp_type}")
+        potential_refs.append(f"_TEMPLATE_{comp_type}")
+        if comp_type in cls.TEMPLATE_MAP:
+            potential_refs.append(cls.TEMPLATE_MAP[comp_type])
+
+        # Check each potential reference
+        for template_ref in potential_refs:
+            if cls._template_exists(schematic, template_ref):
+                logger.debug("Found existing template: %s", template_ref)
+                return (template_ref, False)
+        return None
+
+    @classmethod
+    def _load_dynamic_template(
+        cls,
+        schematic: Schematic,
+        comp_type: str,
+        library: str | None,
+        schematic_path: Path | None,
+    ) -> tuple[str, bool]:
+        """Try to load template dynamically.
+
+        Args:
+            schematic: Schematic object
+            comp_type: Component type
+            library: Optional library name
+            schematic_path: Optional schematic path
+
+        Returns:
+            Tuple of (template_ref, needs_reload)
+        """
+        # Check if dynamic loading is available
+        if not DYNAMIC_LOADING_AVAILABLE:
+            logger.warning(
+                "Component type '%s' not in static templates and dynamic loading unavailable",
+                comp_type,
+            )
+            return ("_TEMPLATE_R", False)
+
+        loader = cls.get_dynamic_loader()
+        if not loader:
+            logger.warning("Dynamic loader unavailable, using fallback template")
+            return ("_TEMPLATE_R", False)
+
+        # Check if schematic path is available
+        if schematic_path is None:
+            logger.warning("Dynamic loading requires schematic file path but none was provided")
+            fallback = cls.TEMPLATE_MAP.get(comp_type, "_TEMPLATE_R")
+            return (fallback, False)
+
+        # Determine library name
+        effective_library = library if library is not None else "Device"
+
+        try:
+            logger.info(
+                "Attempting dynamic load: %s:%s from %s",
+                effective_library,
+                comp_type,
+                schematic_path,
+            )
+
+            # Use dynamic symbol loader to inject symbol and create template
+            template_ref = loader.load_symbol_dynamically(
+                schematic_path, effective_library, comp_type
+            )
+
+            logger.info("Successfully loaded symbol dynamically. Template ref: %s", template_ref)
+            # Signal that schematic needs reload to see new template
+            return (template_ref, True)
+
+        except Exception:
+            logger.exception("Dynamic loading failed for %s:%s", effective_library, comp_type)
+            # Fall back to static template if available
+            fallback = cls.TEMPLATE_MAP.get(comp_type, "_TEMPLATE_R")
+            return (fallback, False)
+
+    @classmethod
+    def get_or_create_template(
         cls,
         schematic: Schematic,
         comp_type: str,
@@ -102,61 +235,18 @@ class ComponentManager:
             Tuple of (template_ref, needs_reload) where needs_reload indicates
             if schematic must be reloaded
         """
-
-        def template_exists(sch: Schematic, template_ref: str) -> bool:
-            """Check if template exists by iterating symbols (handles special characters)."""
-            for symbol in sch.symbol:
-                if (
-                    hasattr(symbol.property, "Reference")
-                    and symbol.property.Reference.value == template_ref
-                ):
-                    return True
-            return False
-
         # 1. Check static template map first
-        if comp_type in cls.TEMPLATE_MAP:
-            template_ref = cls.TEMPLATE_MAP[comp_type]
-            # Verify template exists in schematic
-            if template_exists(schematic, template_ref):
-                logger.debug("Using static template: %s", template_ref)
-                return (template_ref, False)
+        static_result = cls._check_static_template(schematic, comp_type)
+        if static_result:
+            return static_result
 
         # 2. Check if dynamically loaded template already exists
-        # Build potential template reference names
-        potential_refs: list[str] = []
-        if library:
-            potential_refs.append(f"_TEMPLATE_{library}_{comp_type}")
-        potential_refs.append(f"_TEMPLATE_{comp_type}")
-        if comp_type in cls.TEMPLATE_MAP:
-            potential_refs.append(cls.TEMPLATE_MAP[comp_type])
-
-        # Check each potential reference
-        for template_ref in potential_refs:
-            if template_exists(schematic, template_ref):
-                logger.debug("Found existing template: %s", template_ref)
-                return (template_ref, False)
+        existing_result = cls._check_existing_template(schematic, comp_type, library)
+        if existing_result:
+            return existing_result
 
         # 3. Try dynamic loading
-        if not DYNAMIC_LOADING_AVAILABLE:
-            logger.warning(
-                "Component type '%s' not in static templates and dynamic loading unavailable",
-                comp_type,
-            )
-            # Fall back to basic resistor template
-            return ("_TEMPLATE_R", False)
-
-        loader = cls.get_dynamic_loader()
-        if not loader:
-            logger.warning("Dynamic loader unavailable, using fallback template")
-            return ("_TEMPLATE_R", False)
-
-        # Check if schematic path is available
-        if schematic_path is None:
-            logger.warning(
-                "Dynamic loading requires schematic file path but none was provided"
-            )
-            fallback = cls.TEMPLATE_MAP.get(comp_type, "_TEMPLATE_R")
-            return (fallback, False)
+        return cls._load_dynamic_template(schematic, comp_type, library, schematic_path)
 
         # Determine library name
         effective_library = library if library is not None else "Device"
