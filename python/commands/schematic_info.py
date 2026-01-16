@@ -44,6 +44,7 @@ class SchematicInspector:
     def get_schematic_info(
         self,
         schematic_path: str,
+        *,
         include_components: bool = True,
         include_nets: bool = True,
         include_pin_details: bool = False,
@@ -591,6 +592,7 @@ _inspector = SchematicInspector()
 
 def get_schematic_info(
     schematic_path: str,
+    *,
     include_components: bool = True,
     include_nets: bool = True,
     include_pin_details: bool = False,

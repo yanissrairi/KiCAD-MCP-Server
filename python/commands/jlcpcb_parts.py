@@ -309,6 +309,7 @@ class JLCPCBPartsManager:
 
     def search_parts(
         self,
+        *,
         query: str | None = None,
         category: str | None = None,
         package: str | None = None,
