@@ -1,5 +1,4 @@
-"""
-KiCAD API Abstraction Layer
+"""KiCAD API Abstraction Layer.
 
 This module provides a unified interface to KiCAD's Python APIs,
 supporting both the legacy SWIG bindings and the new IPC API.
@@ -20,8 +19,8 @@ Usage:
         board.set_size(100, 80)
 """
 
-from kicad_api.factory import create_backend
 from kicad_api.base import KiCADBackend
+from kicad_api.factory import create_backend
 
-__all__ = ['create_backend', 'KiCADBackend']
-__version__ = '2.0.0-alpha.1'
+__all__ = ["KiCADBackend", "create_backend"]
+__version__ = "2.0.0-alpha.1"
