@@ -298,7 +298,7 @@ class RoutingCommands:
             Success/failure dictionary.
         """
         track = self._find_track_by_uuid(trace_uuid)
-        
+
         if not track:
             return {
                 "success": False,
@@ -328,7 +328,7 @@ class RoutingCommands:
         if closest_track and min_distance < TRACK_SEARCH_RADIUS_NM:  # Within 1mm
             self.board.Remove(closest_track)
             return {"success": True, "message": "Deleted track at specified position"}
-        
+
         return {
             "success": False,
             "message": "No track found",
@@ -360,13 +360,13 @@ class RoutingCommands:
         """
         closest_track = None
         min_distance = float("inf")
-        
+
         for track in self.board.Tracks():
             dist = self._point_to_track_distance(point, track)
             if dist < min_distance:
                 min_distance = dist
                 closest_track = track
-        
+
         return closest_track, min_distance
 
     def delete_trace(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -392,7 +392,7 @@ class RoutingCommands:
             # Dispatch to appropriate deletion method
             if trace_uuid:
                 return self._delete_trace_by_uuid(trace_uuid)
-            
+
             return self._delete_trace_by_position(position)
 
         except Exception as e:

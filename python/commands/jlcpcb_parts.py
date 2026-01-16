@@ -225,7 +225,7 @@ class JLCPCBPartsManager:
             Description string
         """
         description_parts = []
-        
+
         if "resistance" in part:
             description_parts.append(f"{part['resistance']}Ω")
         if "capacitance" in part:
