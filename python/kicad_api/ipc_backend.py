@@ -127,7 +127,8 @@ class IPCBackend(KiCADBackend):
                 "Ensure KiCAD is running with IPC enabled: "
                 "Preferences > Plugins > Enable IPC API Server"
             )
-            raise KiCADConnectionError(f"IPC connection failed: {e}") from e
+            msg = f"IPC connection failed: {e}"
+            raise KiCADConnectionError(msg) from e
 
     def _get_kicad_version(self) -> str:
         """Get KiCAD version string."""
@@ -291,7 +292,8 @@ class IPCBoardAPI(BoardAPI):
                 self._board = self._kicad.get_board()
             except Exception as e:
                 logger.error("Failed to get board: %s", e)
-                raise KiCADConnectionError(f"No board open in KiCAD: {e}") from e
+                msg = f"No board open in KiCAD: {e}"
+                raise KiCADConnectionError(msg) from e
         return self._board
 
     def begin_transaction(self, description: str = "MCP Operation") -> None:
