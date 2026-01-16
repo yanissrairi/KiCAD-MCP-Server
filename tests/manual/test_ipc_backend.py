@@ -10,7 +10,8 @@ Prerequisites:
 3. A board should be open in the PCB editor
 
 Usage:
-    ./venv/bin/python python/test_ipc_backend.py
+    python tests/manual/test_ipc_backend.py
+    python tests/manual/test_ipc_backend.py --interactive
 """
 
 from __future__ import annotations
@@ -25,8 +26,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kicad_api.ipc_backend import IPCBackend
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Add project root to path (tests/manual/ -> project root)
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root / "python"))
 
 # Set up logging
 logging.basicConfig(

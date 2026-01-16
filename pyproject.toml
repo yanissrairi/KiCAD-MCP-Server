@@ -166,6 +166,9 @@ filterwarnings = [
     "error",  # Treat warnings as errors
     "ignore::DeprecationWarning:pytest_asyncio",  # Allow pytest-asyncio deprecation
 ]
+markers = [
+    "integration: Integration tests requiring external services (may be skipped in CI)",
+]
 
 # =============================================================================
 # COVERAGE - SOTA 2026 Code Coverage Requirements
