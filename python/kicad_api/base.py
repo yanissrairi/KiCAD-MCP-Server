@@ -4,6 +4,7 @@ Defines the interface that all KiCAD backends must implement.
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import logging
 from pathlib import Path
 from typing import Any
@@ -89,6 +90,39 @@ class KiCADBackend(ABC):
         Returns:
             BoardAPI instance
         """
+
+
+@dataclass(frozen=True, kw_only=True)
+class ViaConfig:
+    """Configuration for PCB vias.
+
+    Using kw_only=True prevents positional argument errors when multiple
+    fields have the same type. Using frozen=True makes instances immutable.
+
+    Best practices:
+    - Reduces function arguments from 6 to 2
+    - Groups related parameters logically (geometry, connectivity)
+    - Type-safe with dataclass validation
+    - Self-documenting configuration object
+    """
+
+    x: float = 0.0
+    """X position in mm"""
+
+    y: float = 0.0
+    """Y position in mm"""
+
+    diameter: float = 0.8
+    """Via outer diameter in mm"""
+
+    drill: float = 0.4
+    """Via drill diameter in mm"""
+
+    net_name: str | None = None
+    """Optional net name to connect the via to"""
+
+    via_type: str = "through"
+    """Via type: 'through', 'blind', or 'micro'"""
 
 
 class BoardAPI(ABC):
@@ -186,29 +220,16 @@ class BoardAPI(ABC):
         """
         raise NotImplementedError
 
-    def add_via(
-        self,
-        x: float,
-        y: float,
-        diameter: float = 0.8,
-        drill: float = 0.4,
-        net_name: str | None = None,
-        via_type: str = "through",
-    ) -> bool:
+    @abstractmethod
+    def add_via(self, config: ViaConfig | None = None) -> bool:
         """Add a via to the board.
 
         Args:
-            x: X position (mm)
-            y: Y position (mm)
-            diameter: Via diameter (mm)
-            drill: Drill diameter (mm)
-            net_name: Optional net name
-            via_type: Via type ("through", "blind", "micro")
+            config: Via configuration (position, geometry, connectivity)
 
         Returns:
             True if successful
         """
-        raise NotImplementedError
 
     # Transaction support for undo/redo (IPC backend only)
     def supports_transactions(self) -> bool:

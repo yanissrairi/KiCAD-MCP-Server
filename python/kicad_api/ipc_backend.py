@@ -30,6 +30,7 @@ from kicad_api.base import (
     KiCADBackend,
     KiCADConnectionError,
     NotConnectedError,
+    ViaConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -962,19 +963,20 @@ class IPCBoardAPI(BoardAPI):
             logger.error("Failed to add track: %s", e)
             return False
 
-    def add_via(
-        self,
-        x: float,
-        y: float,
-        diameter: float = 0.8,
-        drill: float = 0.4,
-        net_name: str | None = None,
-        via_type: str = "through"
-    ) -> bool:
+    def add_via(self, config: ViaConfig | None = None) -> bool:
         """Add a via to the board.
 
         The via appears immediately in the KiCAD UI.
+
+        Args:
+            config: Via configuration (position, geometry, connectivity)
+
+        Returns:
+            True if successful
         """
+        if config is None:
+            config = ViaConfig()
+
         try:
             from kipy.board_types import Via
             from kipy.geometry import Vector2
@@ -985,9 +987,9 @@ class IPCBoardAPI(BoardAPI):
 
             # Create via
             via = Via()
-            via.position = Vector2.from_xy(from_mm(x), from_mm(y))
-            via.diameter = from_mm(diameter)
-            via.drill_diameter = from_mm(drill)
+            via.position = Vector2.from_xy(from_mm(config.x), from_mm(config.y))
+            via.diameter = from_mm(config.diameter)
+            via.drill_diameter = from_mm(config.drill)
 
             # Set via type (enum values: VT_THROUGH=1, VT_BLIND_BURIED=2, VT_MICRO=3)
             type_map = {
@@ -995,13 +997,13 @@ class IPCBoardAPI(BoardAPI):
                 "blind": ViaType.VT_BLIND_BURIED,
                 "micro": ViaType.VT_MICRO,
             }
-            via.type = type_map.get(via_type, ViaType.VT_THROUGH)
+            via.type = type_map.get(config.via_type, ViaType.VT_THROUGH)
 
             # Set net if specified
-            if net_name:
+            if config.net_name:
                 nets = board.get_nets()
                 for net in nets:
-                    if net.name == net_name:
+                    if net.name == config.net_name:
                         via.net = net
                         break
 
@@ -1011,14 +1013,14 @@ class IPCBoardAPI(BoardAPI):
             board.push_commit(commit, "Added via")
 
             self._notify("via_added", {
-                "position": {"x": x, "y": y},
-                "diameter": diameter,
-                "drill": drill,
-                "net": net_name,
-                "type": via_type
+                "position": {"x": config.x, "y": config.y},
+                "diameter": config.diameter,
+                "drill": config.drill,
+                "net": config.net_name,
+                "type": config.via_type
             })
 
-            logger.info("Added via at (%s, %s) mm", x, y)
+            logger.info("Added via at (%s, %s) mm", config.x, config.y)
             return True
 
         except Exception as e:

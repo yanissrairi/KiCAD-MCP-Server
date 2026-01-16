@@ -1361,7 +1361,9 @@ class KiCADInterface:
             from_layer = params.get("from_layer", "F.Cu")
             to_layer = params.get("to_layer", "B.Cu")
 
-            success = self.ipc_board_api.add_via(
+            from kicad_api.base import ViaConfig  # noqa: PLC0415
+
+            via_config = ViaConfig(
                 x=x,
                 y=y,
                 diameter=size,
@@ -1369,6 +1371,7 @@ class KiCADInterface:
                 net_name=net,
                 via_type="through",
             )
+            success = self.ipc_board_api.add_via(config=via_config)
 
             return {
                 "success": success,
@@ -2064,7 +2067,9 @@ class KiCADInterface:
             return {"success": False, "message": "IPC backend not available"}
 
         try:
-            success = self.ipc_board_api.add_via(
+            from kicad_api.base import ViaConfig  # noqa: PLC0415
+
+            via_config = ViaConfig(
                 x=params.get("x", 0),
                 y=params.get("y", 0),
                 diameter=params.get("diameter", 0.8),
@@ -2072,6 +2077,7 @@ class KiCADInterface:
                 net_name=params.get("net"),
                 via_type=params.get("type", "through"),
             )
+            success = self.ipc_board_api.add_via(config=via_config)
             return {
                 "success": success,
                 "message": (
