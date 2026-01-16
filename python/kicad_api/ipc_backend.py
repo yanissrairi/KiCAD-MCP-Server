@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    import pcbnew
     from kipy import KiCad
     from kipy.board import Board
+    import pcbnew
 
 from kicad_api.base import (
     BoardAPI,
