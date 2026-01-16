@@ -597,7 +597,6 @@ class IPCBoardAPI(BoardAPI):
 
             # Get the pcbnew board instance
             # We need to get the actual board file path
-            project = board.get_project()
             board_path = None
 
             # Try to get the board path from kipy
