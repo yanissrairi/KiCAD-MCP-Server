@@ -6,7 +6,10 @@ read-only access to project data for LLM context.
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from kicad_interface import KiCADInterface
 
 logger = logging.getLogger("kicad_interface")
 
@@ -111,7 +114,7 @@ def handle_resource_read(uri: str, interface: object) -> dict[str, Any]:
 # =============================================================================
 
 
-def _get_project_info(interface) -> dict[str, Any]:
+def _get_project_info(interface: "KiCADInterface") -> dict[str, Any]:
     """Get current project information."""
     result = interface.project_commands.get_project_info({})
 
@@ -136,7 +139,7 @@ def _get_project_info(interface) -> dict[str, Any]:
     }
 
 
-def _get_board_info(interface) -> dict[str, Any]:
+def _get_board_info(interface: "KiCADInterface") -> dict[str, Any]:
     """Get board properties and metadata."""
     result = interface.board_commands.get_board_info({})
 
@@ -161,7 +164,7 @@ def _get_board_info(interface) -> dict[str, Any]:
     }
 
 
-def _get_components(interface) -> dict[str, Any]:
+def _get_components(interface: "KiCADInterface") -> dict[str, Any]:
     """Get list of all components."""
     result = interface.component_commands.get_component_list({})
 
@@ -189,7 +192,7 @@ def _get_components(interface) -> dict[str, Any]:
     }
 
 
-def _get_nets(interface) -> dict[str, Any]:
+def _get_nets(interface: "KiCADInterface") -> dict[str, Any]:
     """Get list of electrical nets."""
     result = interface.routing_commands.get_nets_list({})
 
@@ -215,7 +218,7 @@ def _get_nets(interface) -> dict[str, Any]:
     }
 
 
-def _get_layers(interface) -> dict[str, Any]:
+def _get_layers(interface: "KiCADInterface") -> dict[str, Any]:
     """Get layer stack information."""
     result = interface.board_commands.get_layer_list({})
 
@@ -241,7 +244,7 @@ def _get_layers(interface) -> dict[str, Any]:
     }
 
 
-def _get_design_rules(interface) -> dict[str, Any]:
+def _get_design_rules(interface: "KiCADInterface") -> dict[str, Any]:
     """Get design rule settings."""
     result = interface.design_rule_commands.get_design_rules({})
 
@@ -266,7 +269,7 @@ def _get_design_rules(interface) -> dict[str, Any]:
     }
 
 
-def _get_drc_report(interface) -> dict[str, Any]:
+def _get_drc_report(interface: "KiCADInterface") -> dict[str, Any]:
     """Get DRC violations."""
     result = interface.design_rule_commands.get_drc_violations({})
 
@@ -297,7 +300,7 @@ def _get_drc_report(interface) -> dict[str, Any]:
     }
 
 
-def _get_board_preview(interface) -> dict[str, Any]:
+def _get_board_preview(interface: "KiCADInterface") -> dict[str, Any]:
     """Get board preview as PNG image."""
     result = interface.board_commands.get_board_2d_view({"width": 800, "height": 600})
 

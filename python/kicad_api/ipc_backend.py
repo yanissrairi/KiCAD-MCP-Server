@@ -16,7 +16,10 @@ from collections.abc import Callable
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from kipy import KiCad
 
 from kicad_api.base import (
     BoardAPI,
@@ -292,7 +295,7 @@ class IPCBoardAPI(BoardAPI):
     Uses transactions for proper undo/redo support.
     """
 
-    def __init__(self, kicad_instance, notify_callback: Callable) -> None:
+    def __init__(self, kicad_instance: "KiCad", notify_callback: Callable) -> None:
         """Initialize board API with KiCAD instance and change callback.
 
         Args:
@@ -598,7 +601,7 @@ class IPCBoardAPI(BoardAPI):
 
     def _place_loaded_footprint(
         self,
-        loaded_fp,
+        loaded_fp: Any,
         reference: str,
         x: float,
         y: float,
