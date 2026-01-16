@@ -169,8 +169,9 @@ class KiCADProcessManager:
                     )
                     if "kicad_interface.py" not in cmdline.stdout:
                         return True
-                except OSError:
-                    pass
+                except OSError as e:
+                    # Expected: process may have exited between PID read and check
+                    logger.debug("Could not check process %s: %s", pid, e)
         return False
 
     @staticmethod

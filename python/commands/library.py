@@ -253,8 +253,9 @@ class LibraryManager:
                 config_3rd_party = Path(env_vars["KICAD9_3RD_PARTY"])
                 if config_3rd_party.is_dir():
                     return str(config_3rd_party)
-        except (json.JSONDecodeError, KeyError, TypeError):
-            pass
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            # Expected: config file may not exist, be invalid, or missing keys
+            logger.debug("Could not load KICAD9_3RD_PARTY from config: %s", e)
         return None
 
     def _find_3rdparty_default_path(self, version: str) -> str | None:

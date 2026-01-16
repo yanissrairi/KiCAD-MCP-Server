@@ -435,8 +435,9 @@ class SchematicInspector:
                 return symbol.property.Reference.value  # type: ignore[attr-defined]
             if hasattr(symbol, "reference"):
                 return symbol.reference  # type: ignore[attr-defined]
-        except (AttributeError, TypeError):
-            pass
+        except (AttributeError, TypeError) as e:
+            # Expected: symbol may not have reference property
+            logger.debug("Could not get reference from symbol: %s", e)
         return None
 
     def _get_property(self, symbol: object, prop_name: str, default: str = "") -> str:
@@ -454,8 +455,9 @@ class SchematicInspector:
             if hasattr(symbol, "property") and hasattr(symbol.property, prop_name):
                 prop = getattr(symbol.property, prop_name)
                 return prop.value if hasattr(prop, "value") else str(prop)  # type: ignore[attr-defined]
-        except (AttributeError, TypeError):
-            pass
+        except (AttributeError, TypeError) as e:
+            # Expected: property may not exist on symbol
+            logger.debug("Could not get property '%s' from symbol: %s", prop_name, e)
         return default
 
     def _get_position(self, symbol: object) -> dict[str, float]:
@@ -475,8 +477,9 @@ class SchematicInspector:
                     "y": round(float(pos[1]), 2),
                     "rotation": round(float(pos[2]), 1) if len(pos) > 2 else 0,  # noqa: PLR2004
                 }
-        except (AttributeError, TypeError, IndexError, ValueError):
-            pass
+        except (AttributeError, TypeError, IndexError, ValueError) as e:
+            # Expected: position data may be missing or malformed
+            logger.debug("Could not parse position from symbol: %s", e)
         return {"x": 0, "y": 0, "rotation": 0}
 
     def _sort_reference(self, ref: str) -> tuple[str, int]:
