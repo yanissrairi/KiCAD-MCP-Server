@@ -17,10 +17,10 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.9.0",
-    "pyright>=1.1.390",
+    "ruff>=0.14.13",  # Strict version requirement (SOTA 2026)
+    "pyright>=1.1.408",  # Strict version requirement (SOTA 2026)
     "vulture>=2.14",
-    "bandit>=1.7.8",
+    "bandit>=1.9.0",  # Updated for better security checks
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.21.0",
@@ -35,28 +35,53 @@ dev = [
 target-version = "py312"
 line-length = 100
 src = ["python"]
+unsafe-fixes = false  # Disable auto-fixes that might change behavior
 
 [tool.ruff.lint]
-select = ["ALL"]
+select = ["ALL"]  # All rules enabled
 ignore = [
-    "D203", "D213",  # Conflicting docstring rules
-    "COM812", "ISC001",  # Conflicts with formatter
-    "TRY300",  # Conflicts with RET505 and modern "guard clause" pattern
+    # Docstring conflicts
+    "D203",  # 1 blank line required before class docstring
+    "D213",  # Multi-line docstring summary should start at second line
+    # Formatter conflicts
+    "COM812",  # Trailing comma in collection
+    "ISC001",  # Single line implicit string concatenation
+    # Architecture/Pattern choices
+    "TRY300",  # Use `logging.exception` instead of `logging.error`
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.isort]
+# Ensure imports are strict and properly organized
+force-sort-within-sections = true  # Force alphabetical order within sections
+known-first-party = ["python"]
+combine-as-imports = true
+force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "D", "ANN"]
 "python/commands/__init__.py" = ["F401"]
 
 [tool.pyright]
+# STRICT TYPE CHECKING - for AI code quality enforcement
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 include = ["python"]
-exclude = ["**/__pycache__", ".venv"]
-reportMissingTypeStubs = false
+exclude = ["**/__pycache__", ".venv", "**/__init__.py"]
+
+# Strict report settings
+reportMissingTypeStubs = false  # Allow missing stubs for third-party libs
+reportGeneralTypeIssues = true
+reportMissingImports = false  # Allow missing imports if library not typed
+reportConstantRedefinition = true
+reportInvalidTypeForm = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportUnnecessaryComparison = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
 
 [tool.vulture]
 min_confidence = 80
@@ -64,10 +89,9 @@ paths = ["python"]
 exclude = ["**/templates/", "**/__pycache__/"]
 
 [tool.bandit]
+# SECURITY AUDITING - strict security checks enabled
 exclude_dirs = ["tests", "python/tests", "**/__pycache__"]
-skips = []
-# Security level: medium (default)
-# Confidence level: medium (default)
+skips = []  # No skips - all security checks enabled
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "python/tests"]
