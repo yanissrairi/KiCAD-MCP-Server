@@ -170,6 +170,76 @@ class JLCPCBPartsManager:
             return "Preferred"
         return "Extended"  # Default to Extended
 
+    @staticmethod
+    def _normalize_lcsc_number(lcsc: Any) -> str:
+        """Normalize LCSC number to string format with C prefix.
+
+        Args:
+            lcsc: LCSC number (may be int or string)
+
+        Returns:
+            LCSC number as string with C prefix (e.g., "C25804")
+        """
+        if isinstance(lcsc, int):
+            return f"C{lcsc}"
+        return str(lcsc) if lcsc else ""
+
+    @staticmethod
+    def _build_price_json(part: dict[str, Any]) -> str:
+        """Build price JSON from JLCSearch part data.
+
+        Args:
+            part: Part dictionary from JLCSearch
+
+        Returns:
+            JSON string with price breaks
+        """
+        price = part.get("price") or part.get("price1")
+        price_data = [{"qty": 1, "price": price}] if price else []
+        return json.dumps(price_data)
+
+    @staticmethod
+    def _determine_library_type(part: dict[str, Any]) -> str:
+        """Determine library type from JLCSearch part flags.
+
+        Args:
+            part: Part dictionary from JLCSearch
+
+        Returns:
+            Library type: "Basic", "Preferred", or "Extended"
+        """
+        if part.get("is_preferred"):
+            return "Preferred"
+        if part.get("is_basic"):
+            return "Basic"
+        return "Extended"
+
+    @staticmethod
+    def _build_description(part: dict[str, Any]) -> str:
+        """Build description from JLCSearch part data.
+
+        Args:
+            part: Part dictionary from JLCSearch
+
+        Returns:
+            Description string
+        """
+        description_parts = []
+        
+        if "resistance" in part:
+            description_parts.append(f"{part['resistance']}Ω")
+        if "capacitance" in part:
+            description_parts.append(f"{part['capacitance']}F")
+        if "tolerance_fraction" in part:
+            tol = part["tolerance_fraction"] * 100
+            description_parts.append(f"±{tol}%")
+        if "power_watts" in part:
+            description_parts.append(f"{part['power_watts']}mW")
+        if "voltage" in part:
+            description_parts.append(f"{part['voltage']}V")
+
+        return part.get("description", " ".join(description_parts))
+
     def import_jlcsearch_parts(
         self,
         parts: list[dict[str, Any]],
@@ -187,37 +257,13 @@ class JLCPCBPartsManager:
 
         for i, part in enumerate(parts):
             try:
-                # JLCSearch format is different from official API
-                # LCSC is an integer, we need to add 'C' prefix
-                lcsc = part.get("lcsc")
-                if isinstance(lcsc, int):
-                    lcsc = f"C{lcsc}"
+                # Normalize and prepare part data
+                lcsc = self._normalize_lcsc_number(part.get("lcsc"))
+                price_json = self._build_price_json(part)
+                library_type = self._determine_library_type(part)
+                description = self._build_description(part)
 
-                # Build price JSON from jlcsearch single price
-                price = part.get("price") or part.get("price1")
-                price_json = json.dumps([{"qty": 1, "price": price}] if price else [])
-
-                # Determine library type from is_basic flag
-                library_type = "Basic" if part.get("is_basic") else "Extended"
-                if part.get("is_preferred"):
-                    library_type = "Preferred"
-
-                # Extract description from various fields
-                description_parts = []
-                if "resistance" in part:
-                    description_parts.append(f"{part['resistance']}Ω")
-                if "capacitance" in part:
-                    description_parts.append(f"{part['capacitance']}F")
-                if "tolerance_fraction" in part:
-                    tol = part["tolerance_fraction"] * 100
-                    description_parts.append(f"±{tol}%")
-                if "power_watts" in part:
-                    description_parts.append(f"{part['power_watts']}mW")
-                if "voltage" in part:
-                    description_parts.append(f"{part['voltage']}V")
-
-                description = part.get("description", " ".join(description_parts))
-
+                # Insert into database
                 cursor.execute(
                     """
                     INSERT OR REPLACE INTO components (
