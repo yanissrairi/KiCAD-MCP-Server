@@ -95,7 +95,7 @@ class IPCBackend(KiCADBackend):
                 return
             except Exception as e:
                 last_error = e
-                logger.debug("Failed to connect via %s: %s", path, e)
+                logger.debug("Failed to connect via %s: %s", path, e, exc_info=True)
 
         # None of the paths worked
         msg = f"Could not connect to KiCAD IPC: {last_error}"
@@ -159,6 +159,7 @@ class IPCBackend(KiCADBackend):
                 return self._kicad.get_api_version()
             return "9.0+ (version mismatch)"
         except Exception:
+            logger.debug("Could not get version", exc_info=True)
             return "unknown"
 
     def disconnect(self) -> None:
@@ -177,6 +178,7 @@ class IPCBackend(KiCADBackend):
             self._kicad.ping()
             return True
         except Exception:
+            logger.debug("Ping failed, connection lost", exc_info=True)
             self._connected = False
             return False
 
@@ -194,7 +196,7 @@ class IPCBackend(KiCADBackend):
             try:
                 callback(change_type, details)
             except Exception as e:
-                logger.warning("Change callback error: %s", e)
+                logger.warning("Change callback error: %s", e, exc_info=True)
 
     # Project Operations
     def create_project(self, path: Path, name: str) -> dict[str, Any]:
@@ -559,7 +561,7 @@ class IPCBoardAPI(BoardAPI):
                         "id": str(fp.id) if hasattr(fp, "id") else ""
                     })
                 except Exception as e:
-                    logger.warning("Error processing footprint: %s", e)
+                    logger.warning("Error processing footprint: %s", e, exc_info=True)
                     continue
 
             return components
@@ -646,7 +648,7 @@ class IPCBoardAPI(BoardAPI):
                         logger.info("Loaded footprint '%s' from library '%s'", fp_name, lib_name)
                         return loaded_fp
                 except Exception as e:
-                    logger.warning("Could not load from %s: %s", lib_name, e)
+                    logger.warning("Could not load from %s: %s", lib_name, e, exc_info=True)
             else:
                 # Search all libraries for the footprint
                 lib_names = fp_lib_table.GetLogicalLibs()
@@ -658,7 +660,7 @@ class IPCBoardAPI(BoardAPI):
                             return loaded_fp
                     except Exception as e:
                         # Expected: footprint not in this library, try next
-                        logger.debug("Footprint '%s' not in library '%s': %s", fp_name, lib, e)
+                        logger.debug("Footprint '%s' not in library '%s': %s", fp_name, lib, e, exc_info=True)
                         continue
 
             logger.warning("Footprint '%s' not found in any library", footprint_path)
@@ -703,7 +705,7 @@ class IPCBoardAPI(BoardAPI):
                         board_path = str(doc.path)
                         break
             except Exception as e:
-                logger.debug("Could not get board path from IPC: %s", e)
+                logger.debug("Could not get board path from IPC: %s", e, exc_info=True)
 
             if board_path and Path(board_path).exists():
                 # Load board via pcbnew
@@ -745,7 +747,7 @@ class IPCBoardAPI(BoardAPI):
             try:
                 board.revert()  # Reload from disk to sync IPC
             except Exception as e:
-                logger.debug("Could not refresh IPC board: %s", e)
+                logger.debug("Could not refresh IPC board: %s", e, exc_info=True)
 
             self._notify("component_placed", {
                 "reference": reference,
@@ -1141,7 +1143,7 @@ class IPCBoardAPI(BoardAPI):
                         "id": str(track.id) if hasattr(track, "id") else ""
                     })
                 except Exception as e:
-                    logger.warning("Error processing track: %s", e)
+                    logger.warning("Error processing track: %s", e, exc_info=True)
                     continue
 
             return result
@@ -1173,7 +1175,7 @@ class IPCBoardAPI(BoardAPI):
                         "id": str(via.id) if hasattr(via, "id") else ""
                     })
                 except Exception as e:
-                    logger.warning("Error processing via: %s", e)
+                    logger.warning("Error processing via: %s", e, exc_info=True)
                     continue
 
             return result
@@ -1196,7 +1198,7 @@ class IPCBoardAPI(BoardAPI):
                         "code": net.code if hasattr(net, "code") else 0
                     })
                 except Exception as e:
-                    logger.warning("Error processing net: %s", e)
+                    logger.warning("Error processing net: %s", e, exc_info=True)
                     continue
 
             return result
@@ -1387,7 +1389,7 @@ class IPCBoardAPI(BoardAPI):
                         "id": str(zone.id) if hasattr(zone, "id") else ""
                     })
                 except Exception as e:
-                    logger.warning("Error processing zone: %s", e)
+                    logger.warning("Error processing zone: %s", e, exc_info=True)
                     continue
 
             return result
