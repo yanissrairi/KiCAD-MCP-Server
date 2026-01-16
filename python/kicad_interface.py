@@ -1241,7 +1241,7 @@ class KiCADInterface:
             auto_launch = params.get("autoLaunch", AUTO_LAUNCH_KICAD)
 
             path_obj = Path(project_path) if project_path else None
-            result = check_and_launch_kicad(path_obj, auto_launch)
+            result = check_and_launch_kicad(path_obj, auto_launch=auto_launch)
 
             return {"success": True, **result}
         except (OSError, RuntimeError) as e:
