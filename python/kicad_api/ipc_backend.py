@@ -179,13 +179,19 @@ class IPCBackend(KiCADBackend):
             raise ConnectionError("Not connected to KiCAD")
 
         # IPC API doesn't have project creation - use file-based approach
-        logger.warning("Project creation via IPC not fully supported - using hybrid approach")
+        logger.warning(
+            "Project creation via IPC not supported - attempted to create '%s' at %s",
+            name,
+            path,
+        )
 
         # For now, we'll return info about what needs to happen
         return {
             "success": False,
-            "message": "Direct project creation not supported via IPC",
-            "suggestion": "Open KiCAD and create a new project, or use SWIG backend"
+            "message": f"Direct project creation not supported via IPC. Attempted: '{name}' at {path}",
+            "suggestion": "Open KiCAD and create a new project, or use SWIG backend",
+            "attempted_path": str(path),
+            "attempted_name": name,
         }
 
     def open_project(self, path: Path) -> Dict[str, Any]:
@@ -401,8 +407,21 @@ class IPCBoardAPI(BoardAPI):
             return {"width": 0, "height": 0, "unit": "mm", "error": str(e)}
 
     def add_layer(self, layer_name: str, layer_type: str) -> bool:
-        """Add layer to the board (layers are typically predefined in KiCAD)."""
-        logger.warning("Layer management via IPC is limited - layers are predefined")
+        """Add layer to the board (layers are typically predefined in KiCAD).
+
+        Args:
+            layer_name: Name of the layer to add.
+            layer_type: Type of the layer (e.g., "copper", "technical", "user").
+
+        Returns:
+            False as layer management via IPC is not supported.
+            Layers are predefined in KiCAD projects.
+        """
+        logger.warning(
+            "Layer management via IPC is not supported - attempted to add layer '%s' of type '%s'",
+            layer_name,
+            layer_type,
+        )
         return False
 
     def get_enabled_layers(self) -> List[str]:
@@ -925,12 +944,38 @@ class IPCBoardAPI(BoardAPI):
         size: float = 1.0,
         rotation: float = 0
     ) -> bool:
-        """Add text to the board."""
+        """Add text to the board.
+
+        Args:
+            text: Text content to add.
+            x: X position in mm.
+            y: Y position in mm.
+            layer: Target layer name.
+            size: Text size in mm (NOTE: Not currently configurable via kipy API).
+            rotation: Rotation angle in degrees.
+
+        Returns:
+            True if text was added successfully, False otherwise.
+
+        Note:
+            The size parameter is not currently used as kipy's BoardText API
+            does not expose text size configuration in the current version.
+            A warning will be logged if a non-default size is requested.
+        """
         try:
             from kipy.board_types import BoardText
             from kipy.geometry import Vector2, Angle
             from kipy.util.units import from_mm
             from kipy.proto.board.board_types_pb2 import BoardLayer
+
+            # Warn if non-default size is requested
+            default_size = 1.0
+            if abs(size - default_size) > 0.001:
+                logger.warning(
+                    "Text size configuration not supported via kipy API. "
+                    "Requested size: %.2fmm will be ignored. Text will use default size.",
+                    size,
+                )
 
             board = self._get_board()
 
@@ -957,7 +1002,9 @@ class IPCBoardAPI(BoardAPI):
             self._notify("text_added", {
                 "text": text,
                 "position": {"x": x, "y": y},
-                "layer": layer
+                "layer": layer,
+                "requested_size": size,  # Include for debugging
+                "rotation": rotation,
             })
 
             return True
