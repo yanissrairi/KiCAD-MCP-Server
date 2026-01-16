@@ -634,9 +634,8 @@ class IPCBoardAPI(BoardAPI):
                 loaded_fp.SetValue(value)
 
             # Set layer (flip if bottom)
-            if layer == "B.Cu":
-                if not loaded_fp.IsFlipped():
-                    loaded_fp.Flip(loaded_fp.GetPosition(), False)
+            if layer == "B.Cu" and not loaded_fp.IsFlipped():
+                loaded_fp.Flip(loaded_fp.GetPosition(), False)
 
             # Add to board
             pcb_board.Add(loaded_fp)
