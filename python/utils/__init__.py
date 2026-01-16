@@ -1,1 +1,1 @@
-"""Utility modules for KiCAD MCP Server"""
+"""Utility modules for KiCAD MCP Server."""
