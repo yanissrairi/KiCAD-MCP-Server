@@ -291,7 +291,7 @@ class IPCBoardAPI(BoardAPI):
                 self._board = self._kicad.get_board()
             except Exception as e:
                 logger.error("Failed to get board: %s", e)
-                raise KiCADConnectionError(f"No board open in KiCAD: {e}")
+                raise KiCADConnectionError(f"No board open in KiCAD: {e}") from e
         return self._board
 
     def begin_transaction(self, description: str = "MCP Operation") -> None:
