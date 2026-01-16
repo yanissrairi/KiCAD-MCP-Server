@@ -154,7 +154,7 @@ class ComponentManager:
     @classmethod
     def _load_dynamic_template(
         cls,
-        schematic: Schematic,
+        _schematic: Schematic,
         comp_type: str,
         library: str | None,
         schematic_path: Path | None,
@@ -247,32 +247,6 @@ class ComponentManager:
 
         # 3. Try dynamic loading
         return cls._load_dynamic_template(schematic, comp_type, library, schematic_path)
-
-        # Determine library name
-        effective_library = library if library is not None else "Device"
-
-        try:
-            logger.info(
-                "Attempting dynamic load: %s:%s from %s",
-                effective_library,
-                comp_type,
-                schematic_path,
-            )
-
-            # Use dynamic symbol loader to inject symbol and create template
-            template_ref = loader.load_symbol_dynamically(
-                schematic_path, effective_library, comp_type
-            )
-
-            logger.info("Successfully loaded symbol dynamically. Template ref: %s", template_ref)
-            # Signal that schematic needs reload to see new template
-            return (template_ref, True)
-
-        except Exception:
-            logger.exception("Dynamic loading failed for %s:%s", effective_library, comp_type)
-            # Fall back to static template if available
-            fallback = cls.TEMPLATE_MAP.get(comp_type, "_TEMPLATE_R")
-            return (fallback, False)
 
     @staticmethod
     def add_component(
