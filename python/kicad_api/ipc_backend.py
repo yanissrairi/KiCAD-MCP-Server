@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from kipy import KiCad
     from kipy.board import Board
+    from kipy.board_types import Zone
+    from kipy.geometry import PolyLine
     import pcbnew
 
 from kicad_api.base import (

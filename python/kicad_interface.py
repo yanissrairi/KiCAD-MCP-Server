@@ -27,6 +27,13 @@ from utils.platform_helper import PlatformHelper
 if TYPE_CHECKING:
     from commands.jlcsearch import JLCSearchClient as JLCSearchClientType
 
+# Import IPC backend config classes (optional, may not be available if kipy not installed)
+try:
+    from kicad_api.ipc_backend import TextConfig, ZoneConfig
+except ImportError:
+    TextConfig = None  # type: ignore[assignment, misc]
+    ZoneConfig = None  # type: ignore[assignment, misc]
+
 # Configure logging
 log_dir = Path.home() / ".kicad-mcp" / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
@@ -1439,9 +1446,6 @@ class KiCADInterface:
                 {"x": point.get("x", 0), "y": point.get("y", 0)} for point in points
             ]
 
-            # Import ZoneConfig for parameter object pattern
-            from kicad_api.ipc_backend import ZoneConfig  # noqa: PLC0415
-
             # Create zone configuration
             zone_config = ZoneConfig(
                 layer=layer,
@@ -1522,9 +1526,6 @@ class KiCADInterface:
             layer = params.get("layer", "F.SilkS")
             size = params.get("size", 1.0)
             rotation = params.get("rotation", 0)
-
-            # Import TextConfig for parameter object pattern
-            from kicad_api.ipc_backend import TextConfig  # noqa: PLC0415
 
             # Create text configuration
             text_config = TextConfig(
