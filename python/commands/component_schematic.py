@@ -386,7 +386,6 @@ class ComponentManager:
             List of matching symbol objects
         """
         # This is a basic search, could be expanded to use regex or more complex logic
-        matching_components = []
         query_lower = query.lower()
         # Use list comprehension for better performance
         return [
