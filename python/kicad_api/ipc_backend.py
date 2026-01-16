@@ -70,7 +70,7 @@ class IPCBackend(KiCADBackend):
 
                 # Verify connection with ping (ping returns None on success)
                 self._kicad.ping()
-                logger.info(f"Connected via socket: {path or 'auto-detected'}")
+                logger.info("Connected via socket: %s", path or "auto-detected")
                 return
             except Exception as e:
                 last_error = e
@@ -115,7 +115,7 @@ class IPCBackend(KiCADBackend):
 
             # Get version info
             self._version = self._get_kicad_version()
-            logger.info(f"Connected to KiCAD {self._version} via IPC")
+            logger.info("Connected to KiCAD %s via IPC", self._version)
             self._connected = True
             return True
 
@@ -671,7 +671,7 @@ class IPCBoardAPI(BoardAPI):
                 "loaded_from_library": True
             })
 
-            logger.info(f"Placed component {reference} ({loaded_fp.GetFPIDAsString()}) at ({x}, {y}) mm")
+            logger.info("Placed component %s (%s) at (%s, %s) mm", reference, loaded_fp.GetFPIDAsString(), x, y)
             return True
 
         except Exception as e:
@@ -1213,7 +1213,7 @@ class IPCBoardAPI(BoardAPI):
                 "priority": priority
             })
 
-            logger.info(f"Added zone on {layer} with {len(points)} points")
+            logger.info("Added zone on %s with %s points", layer, len(points))
             return True
 
         except Exception as e:
