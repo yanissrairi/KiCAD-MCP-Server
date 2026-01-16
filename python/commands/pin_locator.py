@@ -18,6 +18,10 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
+# Type alias for S-expressions parsed by sexpdata
+# Can be: list, Symbol, str, int, float, or None
+SExpression = list | Symbol | str | int | float | None
+
 logger = logging.getLogger("kicad_interface")
 
 
@@ -29,7 +33,7 @@ class PinLocator:
         self.pin_definition_cache: dict[str, dict[str, dict[str, Any]]] = {}
 
     @staticmethod
-    def _is_pin_definition(sexp: Any) -> bool:
+    def _is_pin_definition(sexp: SExpression) -> bool:
         """Check if an S-expression is a pin definition.
 
         Args:
@@ -88,7 +92,7 @@ class PinLocator:
                 pin_data["number"] = str(item[1]).strip('"')
 
     @staticmethod
-    def _extract_pins_recursive(sexp: Any, pins: dict[str, dict[str, Any]]) -> None:
+    def _extract_pins_recursive(sexp: SExpression, pins: dict[str, dict[str, Any]]) -> None:
         """Recursively search for pin definitions in S-expression.
 
         Args:
