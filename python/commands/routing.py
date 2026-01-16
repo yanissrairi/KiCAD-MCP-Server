@@ -288,7 +288,7 @@ class RoutingCommands:
             logger.exception("Error adding via: %s", e)
             return {"success": False, "message": "Failed to add via", "errorDetails": str(e)}
 
-    def delete_trace(self, params: dict[str, Any]) -> dict[str, Any]:
+    def delete_trace(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
         """Delete a trace from the PCB."""
         try:
             if not self.board:

@@ -413,7 +413,7 @@ class ExportCommands:
                 "errorDetails": str(e),
             }
 
-    def export_3d(self, params: dict[str, Any]) -> dict[str, Any]:
+    def export_3d(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
         """Export 3D model files using kicad-cli (KiCAD 9.0 compatible).
 
         Args:

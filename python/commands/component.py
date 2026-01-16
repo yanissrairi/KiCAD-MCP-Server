@@ -505,7 +505,7 @@ class ComponentCommands:
                 "errorDetails": str(e),
             }
 
-    def place_component_array(self, params: dict[str, Any]) -> dict[str, Any]:
+    def place_component_array(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
         """Place an array of components in a grid or circular pattern."""
         try:
             if not self.board:
@@ -613,7 +613,7 @@ class ComponentCommands:
                 "errorDetails": str(e),
             }
 
-    def align_components(self, params: dict[str, Any]) -> dict[str, Any]:
+    def align_components(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
         """Align multiple components along a line or distribute them evenly."""
         try:
             if not self.board:

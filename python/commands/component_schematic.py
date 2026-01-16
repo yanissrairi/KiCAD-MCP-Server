@@ -83,7 +83,7 @@ class ComponentManager:
         return cls._dynamic_loader
 
     @classmethod
-    def get_or_create_template(
+    def get_or_create_template(  # noqa: PLR0911
         cls,
         schematic: Schematic,
         comp_type: str,

@@ -131,7 +131,7 @@ class ConnectionManager:
             return None
 
     @staticmethod
-    def add_connection(
+    def add_connection(  # noqa: PLR0911
         schematic_path: Path,
         source_ref: str,
         source_pin: str,
@@ -237,7 +237,7 @@ class ConnectionManager:
             return None
 
     @staticmethod
-    def connect_to_net(
+    def connect_to_net(  # noqa: PLR0911
         schematic_path: Path,
         component_ref: str,
         pin_name: str,
@@ -295,7 +295,7 @@ class ConnectionManager:
             return False
 
     @staticmethod
-    def get_net_connections(  # noqa: PLR0912, PLR0915, C901
+    def get_net_connections(  # noqa: PLR0911, PLR0912, PLR0915, C901
         schematic: Schematic,
         net_name: str,
         schematic_path: Path | None = None,

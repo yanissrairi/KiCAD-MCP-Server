@@ -16,7 +16,7 @@ class BoardOutlineCommands:
         """Initialize with optional board instance."""
         self.board = board
 
-    def add_board_outline(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0912, PLR0915
+    def add_board_outline(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911, PLR0912, PLR0915
         """Add a board outline to the PCB."""
         try:
             if not self.board:

@@ -188,7 +188,7 @@ class DesignRuleCommands:
                 "errorDetails": str(exc),
             }
 
-    def run_drc(self, params: dict[str, Any]) -> dict[str, Any]:
+    def run_drc(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
         """Run Design Rule Check using kicad-cli.
 
         Args:
