@@ -18,7 +18,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from kicad_api.base import APINotAvailableError, BoardAPI, KiCADBackend, KiCADConnectionError
+from kicad_api.base import (
+    BoardAPI,
+    IPCLibraryNotFoundError,
+    KiCADBackend,
+    KiCADConnectionError,
+    NotConnectedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,10 +127,7 @@ class IPCBackend(KiCADBackend):
 
         except ImportError as e:
             logger.error("kicad-python library not found")
-            raise APINotAvailableError(
-                "IPC backend requires kicad-python. "
-                "Install with: pip install kicad-python"
-            ) from e
+            raise IPCLibraryNotFoundError from e
         except Exception as e:
             logger.error("Failed to connect via IPC: %s", e)
             logger.info(
@@ -186,7 +189,7 @@ class IPCBackend(KiCADBackend):
         Projects must be created through the UI or file system.
         """
         if not self.is_connected():
-            raise KiCADConnectionError("Not connected to KiCAD")
+            raise NotConnectedError
 
         # IPC API doesn't have project creation - use file-based approach
         logger.warning(
@@ -207,7 +210,7 @@ class IPCBackend(KiCADBackend):
     def open_project(self, path: Path) -> dict[str, Any]:
         """Open existing project via IPC."""
         if not self.is_connected():
-            raise KiCADConnectionError("Not connected to KiCAD")
+            raise NotConnectedError
 
         try:
             # Check for open documents
@@ -240,7 +243,7 @@ class IPCBackend(KiCADBackend):
     def save_project(self, path: Path | None = None) -> dict[str, Any]:
         """Save current project via IPC."""
         if not self.is_connected():
-            raise KiCADConnectionError("Not connected to KiCAD")
+            raise NotConnectedError
 
         try:
             board = self._kicad.get_board()
@@ -271,7 +274,7 @@ class IPCBackend(KiCADBackend):
     def get_board(self) -> BoardAPI:
         """Get board API for real-time manipulation."""
         if not self.is_connected():
-            raise KiCADConnectionError("Not connected to KiCAD")
+            raise NotConnectedError
 
         return IPCBoardAPI(self._kicad, self._notify_change)
 

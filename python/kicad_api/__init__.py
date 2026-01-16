@@ -19,8 +19,19 @@ Usage:
         board.set_size(100, 80)
 """
 
-from kicad_api.base import KiCADBackend
+from kicad_api.base import (
+    IPCLibraryNotFoundError,
+    KiCADBackend,
+    KiCADConnectionError,
+    NotConnectedError,
+)
 from kicad_api.factory import create_backend
 
-__all__ = ["KiCADBackend", "create_backend"]
+__all__ = [
+    "KiCADBackend",
+    "KiCADConnectionError",
+    "NotConnectedError",
+    "IPCLibraryNotFoundError",
+    "create_backend",
+]
 __version__ = "2.0.0-alpha.1"

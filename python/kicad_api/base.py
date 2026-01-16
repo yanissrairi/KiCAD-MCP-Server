@@ -299,5 +299,23 @@ class KiCADConnectionError(BackendError):
     """Raised when connection to KiCAD fails."""
 
 
+class NotConnectedError(KiCADConnectionError):
+    """Raised when attempting to use KiCAD backend while not connected."""
+
+    def __init__(self) -> None:
+        """Initialize with default message."""
+        super().__init__("Not connected to KiCAD")
+
+
 class APINotAvailableError(BackendError):
     """Raised when required API is not available."""
+
+
+class IPCLibraryNotFoundError(APINotAvailableError):
+    """Raised when kicad-python library is not installed."""
+
+    def __init__(self) -> None:
+        """Initialize with installation instructions."""
+        super().__init__(
+            "IPC backend requires kicad-python. Install with: pip install kicad-python"
+        )
