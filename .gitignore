@@ -1,4 +1,6 @@
-# Node.js
+# ============================================================================
+# Node.js / TypeScript
+# ============================================================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -6,8 +8,12 @@ yarn-error.log*
 dist/
 .npm
 .eslintcache
+*.tsbuildinfo
+.tsc-cache/
 
-# Python
+# ============================================================================
+# Python - Core
+# ============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -27,58 +33,121 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# ============================================================================
+# Python - Testing & Coverage
+# ============================================================================
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
 .hypothesis/
 *.cover
+test_output/
+schematic_test_output/
+coverage.xml
+
+# ============================================================================
+# Python - Type Checking & Linting
+# ============================================================================
 .mypy_cache/
 .dmypy.json
 dmypy.json
+.ruff_cache/
 
+# ============================================================================
 # Virtual Environments
+# ============================================================================
 venv/
 env/
 ENV/
+.venv/
 
-# IDEs
+# ============================================================================
+# IDE and Editor Configuration
+# ============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+.claude/
+.serena/
 
-# Logs
+# ============================================================================
+# Logs and Debug Files
+# ============================================================================
 logs/
 *.log
 ~/.kicad-mcp/
+fix_*.py
+*_debug.py
 
-# Environment
+# ============================================================================
+# Environment Variables & Local Configuration
+# ============================================================================
 .env
 .env.local
 .env.*.local
+*.local.json
+.mcp.json
 
-# KiCAD
+# ============================================================================
+# KiCAD Files - Backups & Caches
+# ============================================================================
 *.kicad_pcb-bak
 *.kicad_sch-bak
 *.kicad_pro-bak
 *.kicad_prl
 *-backups/
 fp-info-cache
+fp-lib-cache/
 
-# Testing
-test_output/
-schematic_test_output/
-coverage.xml
-.coverage.*
+# ============================================================================
+# KiCAD Test Files (temporary files created during testing)
+# ============================================================================
+test_*.kicad_sch
+*_test.kicad_sch
+*_debug.kicad_sch
+clean_test.kicad_sch
+debug_test.kicad_sch
+mcp_test_new.kicad_sch
+test_connection.kicad_sch
+test_fix.kicad_sch
+test_schema.kicad_sch
 
+# ============================================================================
 # Data & Databases
+# ============================================================================
 data/
 *.db
 *.db-journal
 
-# OS
+# ============================================================================
+# OS-Specific Files
+# ============================================================================
+# macOS
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
 Thumbs.db
 Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+
+# Linux
+.directory
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+*.tmp
+*.bak
+*.swp
+breaking_changes.md
