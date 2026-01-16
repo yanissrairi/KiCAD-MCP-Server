@@ -73,7 +73,7 @@ RESOURCE_DEFINITIONS = [
 # =============================================================================
 
 
-def handle_resource_read(uri: str, interface: object) -> dict[str, Any]:
+def handle_resource_read(uri: str, interface: "KiCADInterface") -> dict[str, Any]:
     """Handle reading a resource by URI.
 
     Args:
