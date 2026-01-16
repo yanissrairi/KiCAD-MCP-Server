@@ -1203,6 +1203,77 @@ class IPCBoardAPI(BoardAPI):
             logger.error("Failed to get nets: %s", e)
             return []
 
+    def _set_zone_layer(self, zone: "Zone", layer: str) -> None:
+        """Set the layer for a zone object.
+
+        Args:
+            zone: Zone object to configure
+            layer: Layer name (F.Cu, B.Cu, In1.Cu, etc.)
+        """
+        from kipy.proto.board.board_types_pb2 import BoardLayer
+
+        layer_map = {
+            "F.Cu": BoardLayer.BL_F_Cu,
+            "B.Cu": BoardLayer.BL_B_Cu,
+            "In1.Cu": BoardLayer.BL_In1_Cu,
+            "In2.Cu": BoardLayer.BL_In2_Cu,
+            "In3.Cu": BoardLayer.BL_In3_Cu,
+            "In4.Cu": BoardLayer.BL_In4_Cu,
+        }
+        zone.layers = [layer_map.get(layer, BoardLayer.BL_F_Cu)]
+
+    def _set_zone_net(self, zone: "Zone", board: "Board", net_name: str | None) -> None:
+        """Set the net for a zone object by searching board nets.
+
+        Args:
+            zone: Zone object to configure
+            board: Board instance to search nets from
+            net_name: Net name to assign (e.g., 'GND', 'VCC')
+        """
+        if net_name:
+            nets = board.get_nets()
+            for net in nets:
+                if net.name == net_name:
+                    zone.net = net
+                    break
+
+    def _set_zone_fill_mode(self, zone: "Zone", fill_mode: str) -> None:
+        """Set the fill mode for a zone object.
+
+        Args:
+            zone: Zone object to configure
+            fill_mode: Fill mode ('solid' or 'hatched')
+        """
+        from kipy.board_types import ZoneFillMode
+
+        if fill_mode == "hatched":
+            zone.fill_mode = ZoneFillMode.ZFM_HATCHED
+        else:
+            zone.fill_mode = ZoneFillMode.ZFM_SOLID
+
+    def _create_zone_outline(self, points: list[dict[str, float]]) -> "PolyLine":
+        """Create a closed polyline outline from a list of points.
+
+        Args:
+            points: List of point dicts with 'x' and 'y' keys
+
+        Returns:
+            PolyLine object with closed outline
+        """
+        from kipy.geometry import PolyLine, PolyLineNode
+        from kipy.util.units import from_mm
+
+        outline = PolyLine()
+        outline.closed = True
+
+        for point in points:
+            x = point.get("x", 0)
+            y = point.get("y", 0)
+            node = PolyLineNode.from_xy(from_mm(x), from_mm(y))
+            outline.append(node)
+
+        return outline
+
     def add_zone(
         self,
         points: list[dict[str, float]],
@@ -1237,10 +1308,8 @@ class IPCBoardAPI(BoardAPI):
         name = config.name
 
         try:
-            from kipy.board_types import Zone, ZoneFillMode, ZoneType
+            from kipy.board_types import Zone, ZoneType
             from kipy.common_types import PolygonWithHoles
-            from kipy.geometry import PolyLine, PolyLineNode
-            from kipy.proto.board.board_types_pb2 import BoardLayer
             from kipy.util.units import from_mm
 
             board = self._get_board()
@@ -1253,24 +1322,11 @@ class IPCBoardAPI(BoardAPI):
             zone = Zone()
             zone.type = ZoneType.ZT_COPPER
 
-            # Set layer
-            layer_map = {
-                "F.Cu": BoardLayer.BL_F_Cu,
-                "B.Cu": BoardLayer.BL_B_Cu,
-                "In1.Cu": BoardLayer.BL_In1_Cu,
-                "In2.Cu": BoardLayer.BL_In2_Cu,
-                "In3.Cu": BoardLayer.BL_In3_Cu,
-                "In4.Cu": BoardLayer.BL_In4_Cu,
-            }
-            zone.layers = [layer_map.get(layer, BoardLayer.BL_F_Cu)]
+            # Set layer using helper
+            self._set_zone_layer(zone, layer)
 
-            # Set net if specified
-            if net_name:
-                nets = board.get_nets()
-                for net in nets:
-                    if net.name == net_name:
-                        zone.net = net
-                        break
+            # Set net using helper
+            self._set_zone_net(zone, board, net_name)
 
             # Set zone properties
             zone.clearance = from_mm(clearance)
@@ -1280,21 +1336,11 @@ class IPCBoardAPI(BoardAPI):
             if name:
                 zone.name = name
 
-            # Set fill mode
-            if fill_mode == "hatched":
-                zone.fill_mode = ZoneFillMode.ZFM_HATCHED
-            else:
-                zone.fill_mode = ZoneFillMode.ZFM_SOLID
+            # Set fill mode using helper
+            self._set_zone_fill_mode(zone, fill_mode)
 
-            # Create outline polyline
-            outline = PolyLine()
-            outline.closed = True
-
-            for point in points:
-                x = point.get("x", 0)
-                y = point.get("y", 0)
-                node = PolyLineNode.from_xy(from_mm(x), from_mm(y))
-                outline.append(node)
+            # Create outline using helper
+            outline = self._create_zone_outline(points)
 
             # Set the outline on the zone using the public API
             polygon = PolygonWithHoles()
