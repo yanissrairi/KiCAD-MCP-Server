@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script for KiCAD IPC Backend
+"""Test script for KiCAD IPC Backend.
 
 This script tests the real-time UI synchronization capabilities
 of the IPC backend. Run this while KiCAD is open with a board.
@@ -13,305 +12,261 @@ Prerequisites:
 Usage:
     ./venv/bin/python python/test_ipc_backend.py
 """
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import logging
 import sys
-import os
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from kicad_api.ipc_backend import IPCBackend
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-import logging
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 
-def test_connection():
-    """Test basic IPC connection to KiCAD."""
-    print("\n" + "="*60)
-    print("TEST 1: IPC Connection")
-    print("="*60)
+def test_connection() -> IPCBackend | None:
+    """Test basic IPC connection to KiCAD.
 
+    Returns:
+        IPCBackend instance if connection successful, None otherwise.
+    """
     try:
-        from kicad_api.ipc_backend import IPCBackend
+        from kicad_api.ipc_backend import IPCBackend  # noqa: PLC0415
 
         backend = IPCBackend()
-        print("✓ IPCBackend created")
 
         if backend.connect():
-            print(f"✓ Connected to KiCAD via IPC")
-            print(f"  Version: {backend.get_version()}")
             return backend
-        else:
-            print("✗ Failed to connect to KiCAD")
-            return None
-
-    except ImportError as e:
-        print(f"✗ kicad-python not installed: {e}")
-        print("  Install with: pip install kicad-python")
         return None
-    except Exception as e:
-        print(f"✗ Connection failed: {e}")
-        print("\nMake sure:")
-        print("  1. KiCAD is running")
-        print("  2. IPC API is enabled (Preferences > Plugins > Enable IPC API Server)")
-        print("  3. A board is open in the PCB editor")
+
+    except ImportError:
+        return None
+    except Exception:  # noqa: BLE001
         return None
 
 
-def test_board_access(backend):
-    """Test board access and component listing."""
-    print("\n" + "="*60)
-    print("TEST 2: Board Access")
-    print("="*60)
+def test_board_access(backend: IPCBackend) -> object | None:
+    """Test board access and component listing.
 
+    Args:
+        backend: The IPCBackend instance to use.
+
+    Returns:
+        Board API instance if successful, None otherwise.
+    """
     try:
         board_api = backend.get_board()
-        print("✓ Got board API")
 
         # List components
         components = board_api.list_components()
-        print(f"✓ Found {len(components)} components on board")
 
+        max_display = 5
         if components:
-            print("\n  First 5 components:")
-            for comp in components[:5]:
-                ref = comp.get('reference', 'N/A')
-                val = comp.get('value', 'N/A')
-                pos = comp.get('position', {})
-                x = pos.get('x', 0)
-                y = pos.get('y', 0)
-                print(f"    - {ref}: {val} @ ({x:.2f}, {y:.2f}) mm")
+            for comp in components[:max_display]:
+                _ = comp.get("reference", "N/A")
+                _ = comp.get("value", "N/A")
+                pos = comp.get("position", {})
+                _ = pos.get("x", 0)
+                _ = pos.get("y", 0)
 
         return board_api
 
-    except Exception as e:
-        print(f"✗ Failed to access board: {e}")
+    except Exception:  # noqa: BLE001
         return None
 
 
-def test_board_info(board_api):
-    """Test getting board information."""
-    print("\n" + "="*60)
-    print("TEST 3: Board Information")
-    print("="*60)
+def test_board_info(board_api: object) -> bool:
+    """Test getting board information.
 
+    Args:
+        board_api: The board API instance to use.
+
+    Returns:
+        True if successful, False otherwise.
+    """
     try:
         # Get board size
-        size = board_api.get_size()
-        print(f"✓ Board size: {size.get('width', 0):.2f} x {size.get('height', 0):.2f} mm")
+        board_api.get_size()  # type: ignore[attr-defined]
 
         # Get enabled layers
-        try:
-            layers = board_api.get_enabled_layers()
-            print(f"✓ Enabled layers: {len(layers)}")
-            if layers:
-                print(f"  Layers: {', '.join(layers[:5])}...")
-        except Exception as e:
-            print(f"  (Layer info not available: {e})")
+        with contextlib.suppress(Exception):
+            _ = board_api.get_enabled_layers()  # type: ignore[attr-defined]
 
         # Get nets
-        nets = board_api.get_nets()
-        print(f"✓ Found {len(nets)} nets")
-        if nets:
-            print(f"  First 5 nets: {', '.join([n.get('name', '') for n in nets[:5]])}")
+        _ = board_api.get_nets()  # type: ignore[attr-defined]
 
         # Get tracks
-        tracks = board_api.get_tracks()
-        print(f"✓ Found {len(tracks)} tracks")
+        board_api.get_tracks()  # type: ignore[attr-defined]
 
         # Get vias
-        vias = board_api.get_vias()
-        print(f"✓ Found {len(vias)} vias")
+        board_api.get_vias()  # type: ignore[attr-defined]
 
+    except Exception:  # noqa: BLE001
+        return False
+    else:
         return True
 
-    except Exception as e:
-        print(f"✗ Failed to get board info: {e}")
-        return False
 
+def test_realtime_track(board_api: object, *, interactive: bool = False) -> bool:
+    """Test adding a track in real-time (appears immediately in KiCAD UI).
 
-def test_realtime_track(board_api, interactive=False):
-    """Test adding a track in real-time (appears immediately in KiCAD UI)."""
-    print("\n" + "="*60)
-    print("TEST 4: Real-time Track Addition")
-    print("="*60)
+    Args:
+        board_api: The board API instance to use.
+        interactive: Whether to prompt for confirmation.
 
-    print("\nThis test will add a track that appears IMMEDIATELY in KiCAD UI.")
-    print("Watch the KiCAD window!")
-
+    Returns:
+        True if successful, False otherwise.
+    """
     if interactive:
-        response = input("\nProceed with adding a test track? [y/N]: ").strip().lower()
-        if response != 'y':
-            print("Skipped track test")
+        user_response = input("\nProceed with adding a test track? [y/N]: ").strip().lower()
+        if user_response != "y":
             return False
 
     try:
         # Add a track
-        success = board_api.add_track(
+        success = board_api.add_track(  # type: ignore[attr-defined]
             start_x=100.0,
             start_y=100.0,
             end_x=120.0,
             end_y=100.0,
             width=0.25,
-            layer="F.Cu"
+            layer="F.Cu",
         )
 
-        if success:
-            print("✓ Track added! Check the KiCAD window - it should appear at (100, 100) mm")
-            print("  Track: (100, 100) -> (120, 100) mm, width 0.25mm on F.Cu")
-        else:
-            print("✗ Failed to add track")
-
-        return success
-
-    except Exception as e:
-        print(f"✗ Error adding track: {e}")
+    except Exception:  # noqa: BLE001
         return False
+    else:
+        return bool(success)
 
 
-def test_realtime_via(board_api, interactive=False):
-    """Test adding a via in real-time (appears immediately in KiCAD UI)."""
-    print("\n" + "="*60)
-    print("TEST 5: Real-time Via Addition")
-    print("="*60)
+def test_realtime_via(board_api: object, *, interactive: bool = False) -> bool:
+    """Test adding a via in real-time (appears immediately in KiCAD UI).
 
-    print("\nThis test will add a via that appears IMMEDIATELY in KiCAD UI.")
-    print("Watch the KiCAD window!")
+    Args:
+        board_api: The board API instance to use.
+        interactive: Whether to prompt for confirmation.
 
+    Returns:
+        True if successful, False otherwise.
+    """
     if interactive:
-        response = input("\nProceed with adding a test via? [y/N]: ").strip().lower()
-        if response != 'y':
-            print("Skipped via test")
+        user_response = input("\nProceed with adding a test via? [y/N]: ").strip().lower()
+        if user_response != "y":
             return False
 
     try:
         # Add a via
-        success = board_api.add_via(
+        success = board_api.add_via(  # type: ignore[attr-defined]
             x=120.0,
             y=100.0,
             diameter=0.8,
             drill=0.4,
-            via_type="through"
+            via_type="through",
         )
 
-        if success:
-            print("✓ Via added! Check the KiCAD window - it should appear at (120, 100) mm")
-            print("  Via: diameter 0.8mm, drill 0.4mm")
-        else:
-            print("✗ Failed to add via")
-
-        return success
-
-    except Exception as e:
-        print(f"✗ Error adding via: {e}")
+    except Exception:  # noqa: BLE001
         return False
+    else:
+        return bool(success)
 
 
-def test_realtime_text(board_api, interactive=False):
-    """Test adding text in real-time."""
-    print("\n" + "="*60)
-    print("TEST 6: Real-time Text Addition")
-    print("="*60)
+def test_realtime_text(board_api: object, *, interactive: bool = False) -> bool:
+    """Test adding text in real-time.
 
-    print("\nThis test will add text that appears IMMEDIATELY in KiCAD UI.")
+    Args:
+        board_api: The board API instance to use.
+        interactive: Whether to prompt for confirmation.
 
+    Returns:
+        True if successful, False otherwise.
+    """
     if interactive:
-        response = input("\nProceed with adding test text? [y/N]: ").strip().lower()
-        if response != 'y':
-            print("Skipped text test")
+        user_response = input("\nProceed with adding test text? [y/N]: ").strip().lower()
+        if user_response != "y":
             return False
 
     try:
-        success = board_api.add_text(
+        success = board_api.add_text(  # type: ignore[attr-defined]
             text="MCP Test",
             x=100.0,
             y=95.0,
             layer="F.SilkS",
-            size=1.0
+            size=1.0,
         )
 
-        if success:
-            print("✓ Text added! Check the KiCAD window - should show 'MCP Test' at (100, 95) mm")
-        else:
-            print("✗ Failed to add text")
-
-        return success
-
-    except Exception as e:
-        print(f"✗ Error adding text: {e}")
+    except Exception:  # noqa: BLE001
         return False
-
-
-def test_selection(board_api, interactive=False):
-    """Test getting the current selection from KiCAD UI."""
-    print("\n" + "="*60)
-    print("TEST 7: UI Selection")
-    print("="*60)
-
-    if interactive:
-        print("\nSelect some items in KiCAD, then press Enter...")
-        input()
     else:
-        print("\nReading current selection...")
+        return bool(success)
+
+
+def test_selection(board_api: object, *, interactive: bool = False) -> bool:
+    """Test getting the current selection from KiCAD UI.
+
+    Args:
+        board_api: The board API instance to use.
+        interactive: Whether to prompt for confirmation.
+
+    Returns:
+        True if successful, False otherwise.
+    """
+    if interactive:
+        input()
 
     try:
-        selection = board_api.get_selection()
-        print(f"✓ Found {len(selection)} selected items")
+        max_items = 10
+        selection = board_api.get_selection()  # type: ignore[attr-defined]
 
-        for item in selection[:10]:
-            print(f"  - {item.get('type', 'Unknown')} (ID: {item.get('id', 'N/A')})")
+        for _ in selection[:max_items]:
+            pass
 
+    except Exception:  # noqa: BLE001
+        return False
+    else:
         return True
 
-    except Exception as e:
-        print(f"✗ Failed to get selection: {e}")
-        return False
 
+def run_all_tests(*, interactive: bool = False) -> bool:
+    """Run all IPC backend tests.
 
-def run_all_tests(interactive=False):
-    """Run all IPC backend tests."""
-    print("\n" + "="*60)
-    print("KiCAD IPC Backend Test Suite")
-    print("="*60)
-    print("\nThis script tests real-time communication with KiCAD via IPC API.")
-    print("Make sure KiCAD is running with a board open.\n")
+    Args:
+        interactive: Whether to run in interactive mode.
 
+    Returns:
+        True if all tests passed, False otherwise.
+    """
     # Test connection
     backend = test_connection()
     if not backend:
-        print("\n" + "="*60)
-        print("TESTS FAILED: Could not connect to KiCAD")
-        print("="*60)
         return False
 
     # Test board access
     board_api = test_board_access(backend)
     if not board_api:
-        print("\n" + "="*60)
-        print("TESTS FAILED: Could not access board")
-        print("="*60)
         return False
 
     # Test board info
     test_board_info(board_api)
 
     # Test real-time modifications
-    test_realtime_track(board_api, interactive)
-    test_realtime_via(board_api, interactive)
-    test_realtime_text(board_api, interactive)
+    test_realtime_track(board_api, interactive=interactive)
+    test_realtime_via(board_api, interactive=interactive)
+    test_realtime_text(board_api, interactive=interactive)
 
     # Test selection
-    test_selection(board_api, interactive)
-
-    print("\n" + "="*60)
-    print("TESTS COMPLETE")
-    print("="*60)
-    print("\nThe IPC backend is working! Changes appear in real-time.")
-    print("No manual reload required - this is the power of the IPC API!")
+    test_selection(board_api, interactive=interactive)
 
     # Cleanup
     backend.disconnect()
@@ -320,10 +275,13 @@ def run_all_tests(interactive=False):
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Test KiCAD IPC Backend')
-    parser.add_argument('-i', '--interactive', action='store_true',
-                       help='Run in interactive mode (prompts before modifications)')
+    parser = argparse.ArgumentParser(description="Test KiCAD IPC Backend")
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode (prompts before modifications)",
+    )
     args = parser.parse_args()
 
     success = run_all_tests(interactive=args.interactive)
