@@ -17,83 +17,172 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.13",  # Strict version requirement (SOTA 2026)
-    "pyright>=1.1.408",  # Strict version requirement (SOTA 2026)
-    "vulture>=2.14",
-    "bandit>=1.9.0",  # Updated for better security checks
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-mock>=3.11.0",
-    "types-requests>=2.31.0",
-    "types-Pillow>=10.0.0",
+    "ruff>=0.14.13",  # SOTA 2026 - Fast linter/formatter
+    "pyright>=1.1.408",  # SOTA 2026 - Strict type checker
+    "vulture>=2.14",  # Dead code detection
+    "bandit[toml]>=1.9.2",  # SOTA 2026 - Security scanner with toml support
+    "pytest>=8.0.0",  # SOTA 2026
+    "pytest-cov>=5.0.0",  # SOTA 2026
+    "pytest-asyncio>=0.24.0",  # SOTA 2026
+    "pytest-mock>=3.14.0",  # SOTA 2026
+    "types-requests>=2.32.0",
+    "types-Pillow>=10.2.0",
     "ipython>=8.14.0",
     "ipdb>=0.13.13",
 ]
 
+# =============================================================================
+# RUFF - SOTA 2026 Configuration for AI Code Quality Guardrails
+# =============================================================================
 [tool.ruff]
 target-version = "py312"
 line-length = 100
 src = ["python"]
-unsafe-fixes = false  # Disable auto-fixes that might change behavior
+unsafe-fixes = false  # Prevent auto-fixes that might change behavior
 
 [tool.ruff.lint]
-select = ["ALL"]  # All rules enabled
+# SOTA 2026: Enable preview mode for latest experimental rules
+preview = true
+explicit-preview-rules = true  # Require explicit selection of preview rules
+select = ["ALL"]  # All rules enabled for maximum coverage
 ignore = [
-    # Docstring conflicts
+    # Docstring style conflicts (mutually exclusive rules)
     "D203",  # 1 blank line required before class docstring
     "D213",  # Multi-line docstring summary should start at second line
-    # Formatter conflicts
+    # Formatter conflicts (handled by ruff format)
     "COM812",  # Trailing comma in collection
     "ISC001",  # Single line implicit string concatenation
-    # Architecture/Pattern choices
+    # Architecture/Pattern choices (project-specific)
     "TRY300",  # Use `logging.exception` instead of `logging.error`
 ]
+
+[tool.ruff.lint.mccabe]
+# SOTA 2026: Complexity guardrails for AI-generated code
+max-complexity = 10  # Maximum cyclomatic complexity per function
+
+[tool.ruff.lint.pylint]
+# SOTA 2026: Additional complexity limits
+max-args = 5  # Maximum function arguments
+max-branches = 12  # Maximum branches per function
+max-statements = 50  # Maximum statements per function
+max-nested-blocks = 4  # Maximum nesting depth
+max-public-methods = 20  # Maximum public methods per class
+max-returns = 6  # Maximum return statements per function
+max-locals = 15  # Maximum local variables per function
+
+[tool.ruff.lint.flake8-bandit]
+# SOTA 2026: Enhanced security checks
+check-typed-exception = true  # Check for typed exceptions in handlers
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.isort]
-# Ensure imports are strict and properly organized
-force-sort-within-sections = true  # Force alphabetical order within sections
+# Strict import organization
+force-sort-within-sections = true
 known-first-party = ["python"]
 combine-as-imports = true
 force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "D", "ANN"]
-"python/commands/__init__.py" = ["F401"]
+"**/tests/**" = ["S101", "D", "ANN", "PLR2004", "PLR0913"]  # Allow assert, no docs, magic values in tests
+"python/commands/__init__.py" = ["F401"]  # Allow unused imports in __init__
 
+# =============================================================================
+# PYRIGHT - SOTA 2026 Ultra-Strict Type Checking for AI Guardrails
+# =============================================================================
 [tool.pyright]
-# STRICT TYPE CHECKING - for AI code quality enforcement
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 include = ["python"]
 exclude = ["**/__pycache__", ".venv", "**/__init__.py"]
 
-# Strict report settings
+# --- Core strict settings ---
 reportMissingTypeStubs = false  # Allow missing stubs for third-party libs
-reportGeneralTypeIssues = true
 reportMissingImports = false  # Allow missing imports if library not typed
+reportGeneralTypeIssues = true
+
+# --- Type consistency enforcement ---
 reportConstantRedefinition = true
 reportInvalidTypeForm = true
-reportUnnecessaryIsInstance = true
-reportUnnecessaryCast = true
-reportUnnecessaryComparison = true
 reportIncompatibleMethodOverride = true
 reportIncompatibleVariableOverride = true
 
+# --- Unnecessary code detection ---
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportUnnecessaryComparison = true
+reportUnnecessaryContains = true
+
+# --- SOTA 2026: Additional strict options for AI guardrails ---
+reportImplicitOverride = true  # Require @override decorator
+reportUnreachable = true  # Detect unreachable/dead code
+reportUnnecessaryTypeIgnoreComment = true  # Flag stale type: ignore
+reportUninitializedInstanceVariable = true  # Ensure class vars initialized
+reportImportCycles = "warning"  # Detect architectural issues
+reportMissingSuperCall = true  # Ensure super().__init__ called
+reportShadowedImports = true  # Detect import shadowing
+reportUnusedCallResult = "warning"  # Flag ignored return values
+reportCallInDefaultInitializer = true  # Detect expensive default args
+reportDeprecated = true  # Flag deprecated API usage
+reportDuplicateImport = true  # Detect duplicate imports
+reportMatchNotExhaustive = true  # Ensure match statements are exhaustive
+reportPrivateUsage = true  # Flag private member access
+reportTypeCommentUsage = true  # Discourage legacy type comments
+reportUnknownArgumentType = "warning"  # Flag unknown types in args
+reportUnknownMemberType = "warning"  # Flag unknown member types
+reportUnknownParameterType = "warning"  # Flag unknown parameter types
+reportUnknownVariableType = "warning"  # Flag unknown variable types
+reportUntypedBaseClass = true  # Require typed base classes
+reportUntypedClassDecorator = true  # Require typed decorators
+reportUntypedFunctionDecorator = true  # Require typed function decorators
+
+# =============================================================================
+# VULTURE - Dead Code Detection
+# =============================================================================
 [tool.vulture]
 min_confidence = 80
 paths = ["python"]
 exclude = ["**/templates/", "**/__pycache__/"]
 
+# =============================================================================
+# BANDIT - SOTA 2026 Security Auditing
+# =============================================================================
 [tool.bandit]
-# SECURITY AUDITING - strict security checks enabled
 exclude_dirs = ["tests", "python/tests", "**/__pycache__"]
 skips = []  # No skips - all security checks enabled
+severity = "low"  # Report all severities (low, medium, high)
 
+# =============================================================================
+# PYTEST - SOTA 2026 Testing Configuration
+# =============================================================================
 [tool.pytest.ini_options]
 testpaths = ["tests", "python/tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=python --cov-report=term-missing"
+addopts = "-v --cov=python --cov-report=term-missing --strict-markers"
+# Note: --cov-fail-under=80 removed temporarily until test coverage improves
+asyncio_mode = "auto"
+filterwarnings = [
+    "error",  # Treat warnings as errors
+    "ignore::DeprecationWarning:pytest_asyncio",  # Allow pytest-asyncio deprecation
+]
+
+# =============================================================================
+# COVERAGE - SOTA 2026 Code Coverage Requirements
+# =============================================================================
+[tool.coverage.run]
+branch = true  # Enable branch coverage
+source = ["python"]
+omit = ["**/tests/**", "**/__pycache__/**"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",  # Ellipsis (abstract methods)
+]
+fail_under = 80  # Minimum coverage threshold
+show_missing = true
+skip_covered = false
