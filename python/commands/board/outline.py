@@ -16,7 +16,7 @@ class BoardOutlineCommands:
         """Initialize with optional board instance."""
         self.board = board
 
-    def add_board_outline(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911, PLR0912, PLR0915
+    def add_board_outline(self, params: dict[str, Any]) -> dict[str, Any]:
         """Add a board outline to the PCB."""
         try:
             if not self.board:
@@ -27,133 +27,42 @@ class BoardOutlineCommands:
                 }
 
             shape = params.get("shape", "rectangle")
-            width = params.get("width")
-            height = params.get("height")
-            center_x = params.get("centerX", 0)
-            center_y = params.get("centerY", 0)
-            radius = params.get("radius")
-            corner_radius = params.get("cornerRadius", 0)
-            points = params.get("points", [])
-            unit = params.get("unit", "mm")
+            validation_result = self._validate_shape(shape)
+            if not validation_result["success"]:
+                return validation_result
 
-            if shape not in ["rectangle", "circle", "polygon", "rounded_rectangle"]:
-                return {
-                    "success": False,
-                    "message": "Invalid shape",
-                    "errorDetails": f"Shape '{shape}' not supported",
-                }
-
-            # Convert to internal units (nanometers)
-            scale = 1000000 if unit == "mm" else 25400000  # mm or inch to nm
-
-            # Create drawing for edge cuts
+            scale = self._get_scale_factor(params.get("unit", "mm"))
             edge_layer = self.board.GetLayerID("Edge.Cuts")
 
-            if shape == "rectangle":
-                if width is None or height is None:
-                    return {
-                        "success": False,
-                        "message": "Missing dimensions",
-                        "errorDetails": "Both width and height are required for rectangle",
-                    }
+            # Dispatch to appropriate shape handler
+            shape_handlers = {
+                "rectangle": self._add_rectangle_outline,
+                "rounded_rectangle": self._add_rounded_rectangle_outline,
+                "circle": self._add_circle_outline,
+                "polygon": self._add_polygon_outline,
+            }
 
-                width_nm = int(width * scale)
-                height_nm = int(height * scale)
-                center_x_nm = int(center_x * scale)
-                center_y_nm = int(center_y * scale)
+            handler = shape_handlers.get(shape)
+            result = handler(params, scale, edge_layer)
 
-                # Create rectangle
-                top_left = pcbnew.VECTOR2I(
-                    center_x_nm - width_nm // 2, center_y_nm - height_nm // 2
-                )
-                top_right = pcbnew.VECTOR2I(
-                    center_x_nm + width_nm // 2, center_y_nm - height_nm // 2
-                )
-                bottom_right = pcbnew.VECTOR2I(
-                    center_x_nm + width_nm // 2, center_y_nm + height_nm // 2
-                )
-                bottom_left = pcbnew.VECTOR2I(
-                    center_x_nm - width_nm // 2, center_y_nm + height_nm // 2
-                )
-
-                # Add lines for rectangle
-                self._add_edge_line(top_left, top_right, edge_layer)
-                self._add_edge_line(top_right, bottom_right, edge_layer)
-                self._add_edge_line(bottom_right, bottom_left, edge_layer)
-                self._add_edge_line(bottom_left, top_left, edge_layer)
-
-            elif shape == "rounded_rectangle":
-                if width is None or height is None:
-                    return {
-                        "success": False,
-                        "message": "Missing dimensions",
-                        "errorDetails": "Both width and height are required for rounded rectangle",
-                    }
-
-                width_nm = int(width * scale)
-                height_nm = int(height * scale)
-                center_x_nm = int(center_x * scale)
-                center_y_nm = int(center_y * scale)
-                corner_radius_nm = int(corner_radius * scale)
-
-                # Create rounded rectangle
-                self._add_rounded_rect(
-                    center_x_nm, center_y_nm, width_nm, height_nm, corner_radius_nm, edge_layer
-                )
-
-            elif shape == "circle":
-                if radius is None:
-                    return {
-                        "success": False,
-                        "message": "Missing radius",
-                        "errorDetails": "Radius is required for circle",
-                    }
-
-                center_x_nm = int(center_x * scale)
-                center_y_nm = int(center_y * scale)
-                radius_nm = int(radius * scale)
-
-                # Create circle
-                circle = pcbnew.PCB_SHAPE(self.board)
-                circle.SetShape(pcbnew.SHAPE_T_CIRCLE)
-                circle.SetCenter(pcbnew.VECTOR2I(center_x_nm, center_y_nm))
-                circle.SetEnd(pcbnew.VECTOR2I(center_x_nm + radius_nm, center_y_nm))
-                circle.SetLayer(edge_layer)
-                circle.SetWidth(0)  # Zero width for edge cuts
-                self.board.Add(circle)
-
-            elif shape == "polygon":
-                if not points or len(points) < 3:  # noqa: PLR2004
-                    return {
-                        "success": False,
-                        "message": "Missing points",
-                        "errorDetails": "At least 3 points are required for polygon",
-                    }
-
-                # Convert points to nm
-                polygon_points = []
-                for point in points:
-                    x_nm = int(point["x"] * scale)
-                    y_nm = int(point["y"] * scale)
-                    polygon_points.append(pcbnew.VECTOR2I(x_nm, y_nm))
-
-                # Add lines for polygon
-                for i in range(len(polygon_points)):
-                    self._add_edge_line(
-                        polygon_points[i], polygon_points[(i + 1) % len(polygon_points)], edge_layer
-                    )
+            if not result["success"]:
+                return result
 
             return {
                 "success": True,
                 "message": f"Added board outline: {shape}",
                 "outline": {
                     "shape": shape,
-                    "width": width,
-                    "height": height,
-                    "center": {"x": center_x, "y": center_y, "unit": unit},
-                    "radius": radius,
-                    "cornerRadius": corner_radius,
-                    "points": points,
+                    "width": params.get("width"),
+                    "height": params.get("height"),
+                    "center": {
+                        "x": params.get("centerX", 0),
+                        "y": params.get("centerY", 0),
+                        "unit": params.get("unit", "mm"),
+                    },
+                    "radius": params.get("radius"),
+                    "cornerRadius": params.get("cornerRadius", 0),
+                    "points": params.get("points", []),
                 },
             }
 
@@ -164,6 +73,146 @@ class BoardOutlineCommands:
                 "message": "Failed to add board outline",
                 "errorDetails": str(e),
             }
+
+    def _validate_shape(self, shape: str) -> dict[str, Any]:
+        """Validate shape parameter."""
+        valid_shapes = ["rectangle", "circle", "polygon", "rounded_rectangle"]
+        if shape not in valid_shapes:
+            return {
+                "success": False,
+                "message": "Invalid shape",
+                "errorDetails": f"Shape '{shape}' not supported",
+            }
+        return {"success": True}
+
+    def _get_scale_factor(self, unit: str) -> int:
+        """Get scale factor for unit conversion to nanometers."""
+        return 1000000 if unit == "mm" else 25400000  # mm or inch to nm
+
+    def _add_rectangle_outline(
+        self, params: dict[str, Any], scale: int, edge_layer: int
+    ) -> dict[str, Any]:
+        """Add rectangle outline."""
+        width = params.get("width")
+        height = params.get("height")
+
+        if width is None or height is None:
+            return {
+                "success": False,
+                "message": "Missing dimensions",
+                "errorDetails": "Both width and height are required for rectangle",
+            }
+
+        center_x = params.get("centerX", 0)
+        center_y = params.get("centerY", 0)
+
+        width_nm = int(width * scale)
+        height_nm = int(height * scale)
+        center_x_nm = int(center_x * scale)
+        center_y_nm = int(center_y * scale)
+
+        # Create rectangle corners
+        top_left = pcbnew.VECTOR2I(center_x_nm - width_nm // 2, center_y_nm - height_nm // 2)
+        top_right = pcbnew.VECTOR2I(center_x_nm + width_nm // 2, center_y_nm - height_nm // 2)
+        bottom_right = pcbnew.VECTOR2I(center_x_nm + width_nm // 2, center_y_nm + height_nm // 2)
+        bottom_left = pcbnew.VECTOR2I(center_x_nm - width_nm // 2, center_y_nm + height_nm // 2)
+
+        # Add rectangle edges
+        self._add_edge_line(top_left, top_right, edge_layer)
+        self._add_edge_line(top_right, bottom_right, edge_layer)
+        self._add_edge_line(bottom_right, bottom_left, edge_layer)
+        self._add_edge_line(bottom_left, top_left, edge_layer)
+
+        return {"success": True}
+
+    def _add_rounded_rectangle_outline(
+        self, params: dict[str, Any], scale: int, edge_layer: int
+    ) -> dict[str, Any]:
+        """Add rounded rectangle outline."""
+        width = params.get("width")
+        height = params.get("height")
+
+        if width is None or height is None:
+            return {
+                "success": False,
+                "message": "Missing dimensions",
+                "errorDetails": "Both width and height are required for rounded rectangle",
+            }
+
+        center_x = params.get("centerX", 0)
+        center_y = params.get("centerY", 0)
+        corner_radius = params.get("cornerRadius", 0)
+
+        width_nm = int(width * scale)
+        height_nm = int(height * scale)
+        center_x_nm = int(center_x * scale)
+        center_y_nm = int(center_y * scale)
+        corner_radius_nm = int(corner_radius * scale)
+
+        self._add_rounded_rect(
+            center_x_nm, center_y_nm, width_nm, height_nm, corner_radius_nm, edge_layer
+        )
+
+        return {"success": True}
+
+    def _add_circle_outline(
+        self, params: dict[str, Any], scale: int, edge_layer: int
+    ) -> dict[str, Any]:
+        """Add circle outline."""
+        radius = params.get("radius")
+
+        if radius is None:
+            return {
+                "success": False,
+                "message": "Missing radius",
+                "errorDetails": "Radius is required for circle",
+            }
+
+        center_x = params.get("centerX", 0)
+        center_y = params.get("centerY", 0)
+
+        center_x_nm = int(center_x * scale)
+        center_y_nm = int(center_y * scale)
+        radius_nm = int(radius * scale)
+
+        # Create circle
+        circle = pcbnew.PCB_SHAPE(self.board)
+        circle.SetShape(pcbnew.SHAPE_T_CIRCLE)
+        circle.SetCenter(pcbnew.VECTOR2I(center_x_nm, center_y_nm))
+        circle.SetEnd(pcbnew.VECTOR2I(center_x_nm + radius_nm, center_y_nm))
+        circle.SetLayer(edge_layer)
+        circle.SetWidth(0)  # Zero width for edge cuts
+        self.board.Add(circle)
+
+        return {"success": True}
+
+    def _add_polygon_outline(
+        self, params: dict[str, Any], scale: int, edge_layer: int
+    ) -> dict[str, Any]:
+        """Add polygon outline."""
+        points = params.get("points", [])
+
+        if not points or len(points) < 3:  # noqa: PLR2004
+            return {
+                "success": False,
+                "message": "Missing points",
+                "errorDetails": "At least 3 points are required for polygon",
+            }
+
+        # Convert points to nanometers
+        polygon_points = []
+        for point in points:
+            x_nm = int(point["x"] * scale)
+            y_nm = int(point["y"] * scale)
+            polygon_points.append(pcbnew.VECTOR2I(x_nm, y_nm))
+
+        # Add polygon edges
+        for i in range(len(polygon_points)):
+            self._add_edge_line(
+                polygon_points[i], polygon_points[(i + 1) % len(polygon_points)], edge_layer
+            )
+
+        return {"success": True}
 
     def add_mounting_hole(self, params: dict[str, Any]) -> dict[str, Any]:
         """Add a mounting hole to the PCB."""
