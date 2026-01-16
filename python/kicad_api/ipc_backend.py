@@ -54,7 +54,7 @@ class IPCBackend(KiCADBackend):
             True if connection successful
 
         Raises:
-            ConnectionError: If connection fails
+            KiCADConnectionError: If connection fails
         """
         try:
             # Import here to allow module to load even without kicad-python
