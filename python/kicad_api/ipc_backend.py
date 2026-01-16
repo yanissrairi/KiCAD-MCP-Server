@@ -141,10 +141,10 @@ class IPCBackend(KiCADBackend):
             return True
 
         except ImportError as e:
-            logger.error("kicad-python library not found")
+            logger.exception("kicad-python library not found")
             raise IPCLibraryNotFoundError from e
         except Exception as e:
-            logger.error("Failed to connect via IPC: %s", e)
+            logger.exception("Failed to connect via IPC: %s", e)
             logger.info(
                 "Ensure KiCAD is running with IPC enabled: "
                 "Preferences > Plugins > Enable IPC API Server"
@@ -248,7 +248,7 @@ class IPCBackend(KiCADBackend):
             }
 
         except Exception as e:
-            logger.error("Failed to check project: %s", e)
+            logger.exception("Failed to check project: %s", e)
             return {
                 "success": False,
                 "message": "Failed to check project",
@@ -274,7 +274,7 @@ class IPCBackend(KiCADBackend):
                 "message": "Project saved successfully"
             }
         except Exception as e:
-            logger.error("Failed to save project: %s", e)
+            logger.exception("Failed to save project: %s", e)
             return {
                 "success": False,
                 "message": "Failed to save project",
@@ -385,7 +385,7 @@ class IPCBoardAPI(BoardAPI):
             try:
                 self._board = self._kicad.get_board()
             except Exception as e:
-                logger.error("Failed to get board: %s", e)
+                logger.exception("Failed to get board: %s", e)
                 msg = f"No board open in KiCAD: {e}"
                 raise KiCADConnectionError(msg) from e
         return self._board
@@ -420,7 +420,7 @@ class IPCBoardAPI(BoardAPI):
             self._notify("save", {})
             return True
         except Exception as e:
-            logger.error("Failed to save board: %s", e)
+            logger.exception("Failed to save board: %s", e)
             return False
 
     def set_size(self, width: float, height: float, unit: str = "mm") -> bool:
@@ -463,7 +463,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to set board size: %s", e)
+            logger.exception("Failed to set board size: %s", e)
             return False
 
     def get_size(self) -> dict[str, float]:
@@ -502,7 +502,7 @@ class IPCBoardAPI(BoardAPI):
             }
 
         except Exception as e:
-            logger.error("Failed to get board size: %s", e)
+            logger.exception("Failed to get board size: %s", e)
             return {"width": 0, "height": 0, "unit": "mm", "error": str(e)}
 
     def add_layer(self, layer_name: str, layer_type: str) -> bool:
@@ -530,7 +530,7 @@ class IPCBoardAPI(BoardAPI):
             layers = board.get_enabled_layers()
             return [str(layer) for layer in layers]
         except Exception as e:
-            logger.error("Failed to get enabled layers: %s", e)
+            logger.exception("Failed to get enabled layers: %s", e)
             return []
 
     def list_components(self) -> list[dict[str, Any]]:
@@ -565,7 +565,7 @@ class IPCBoardAPI(BoardAPI):
             return components
 
         except Exception as e:
-            logger.error("Failed to list components: %s", e)
+            logger.exception("Failed to list components: %s", e)
             return []
 
     def place_component(
@@ -612,7 +612,7 @@ class IPCBoardAPI(BoardAPI):
             )
 
         except Exception as e:
-            logger.error("Failed to place component: %s", e)
+            logger.exception("Failed to place component: %s", e)
             return False
 
     def _load_footprint_from_library(self, footprint_path: str) -> "pcbnew.FOOTPRINT | None":
@@ -668,7 +668,7 @@ class IPCBoardAPI(BoardAPI):
             logger.warning("pcbnew not available - cannot load footprints from library")
             return None
         except Exception as e:
-            logger.error("Error loading footprint from library: %s", e)
+            logger.exception("Error loading footprint from library: %s", e)
             return None
 
     def _place_loaded_footprint(
@@ -713,7 +713,7 @@ class IPCBoardAPI(BoardAPI):
                 pcb_board = pcbnew.GetBoard()
 
             if not pcb_board:
-                logger.error("Could not get pcbnew board instance")
+                logger.exception("Could not get pcbnew board instance")
                 return self._place_placeholder_footprint(
                     reference, "", x, y, rotation, layer, value
                 )
@@ -760,7 +760,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Error placing loaded footprint: %s", e)
+            logger.exception("Error placing loaded footprint: %s", e)
             # Fall back to placeholder
             return self._place_placeholder_footprint(
                 reference, "", x, y, rotation, layer, value
@@ -824,7 +824,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to place placeholder component: %s", e)
+            logger.exception("Failed to place placeholder component: %s", e)
             return False
 
     def move_component(self, reference: str, x: float, y: float, rotation: float | None = None) -> bool:
@@ -844,7 +844,7 @@ class IPCBoardAPI(BoardAPI):
                     break
 
             if not target_fp:
-                logger.error("Component not found: %s", reference)
+                logger.exception("Component not found: %s", reference)
                 return False
 
             # Update position
@@ -867,7 +867,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to move component: %s", e)
+            logger.exception("Failed to move component: %s", e)
             return False
 
     def delete_component(self, reference: str) -> bool:
@@ -884,7 +884,7 @@ class IPCBoardAPI(BoardAPI):
                     break
 
             if not target_fp:
-                logger.error("Component not found: %s", reference)
+                logger.exception("Component not found: %s", reference)
                 return False
 
             # Remove component
@@ -897,7 +897,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to delete component: %s", e)
+            logger.exception("Failed to delete component: %s", e)
             return False
 
     def add_track(
@@ -962,7 +962,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to add track: %s", e)
+            logger.exception("Failed to add track: %s", e)
             return False
 
     def add_via(self, config: ViaConfig | None = None) -> bool:
@@ -1026,7 +1026,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to add via: %s", e)
+            logger.exception("Failed to add via: %s", e)
             return False
 
     def add_text(
@@ -1112,7 +1112,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to add text: %s", e)
+            logger.exception("Failed to add text: %s", e)
             return False
 
     def get_tracks(self) -> list[dict[str, Any]]:
@@ -1147,7 +1147,7 @@ class IPCBoardAPI(BoardAPI):
             return result
 
         except Exception as e:
-            logger.error("Failed to get tracks: %s", e)
+            logger.exception("Failed to get tracks: %s", e)
             return []
 
     def get_vias(self) -> list[dict[str, Any]]:
@@ -1179,7 +1179,7 @@ class IPCBoardAPI(BoardAPI):
             return result
 
         except Exception as e:
-            logger.error("Failed to get vias: %s", e)
+            logger.exception("Failed to get vias: %s", e)
             return []
 
     def get_nets(self) -> list[dict[str, Any]]:
@@ -1202,7 +1202,7 @@ class IPCBoardAPI(BoardAPI):
             return result
 
         except Exception as e:
-            logger.error("Failed to get nets: %s", e)
+            logger.exception("Failed to get nets: %s", e)
             return []
 
     def _set_zone_layer(self, zone: "Zone", layer: str) -> None:
@@ -1317,7 +1317,7 @@ class IPCBoardAPI(BoardAPI):
             board = self._get_board()
 
             if len(points) < MIN_ZONE_POINTS:
-                logger.error("Zone requires at least 3 points")
+                logger.exception("Zone requires at least 3 points")
                 return False
 
             # Create zone
@@ -1365,7 +1365,7 @@ class IPCBoardAPI(BoardAPI):
             return True
 
         except Exception as e:
-            logger.error("Failed to add zone: %s", e)
+            logger.exception("Failed to add zone: %s", e)
             return False
 
     def get_zones(self) -> list[dict[str, Any]]:
@@ -1393,7 +1393,7 @@ class IPCBoardAPI(BoardAPI):
             return result
 
         except Exception as e:
-            logger.error("Failed to get zones: %s", e)
+            logger.exception("Failed to get zones: %s", e)
             return []
 
     def refill_zones(self) -> bool:
@@ -1404,7 +1404,7 @@ class IPCBoardAPI(BoardAPI):
             self._notify("zones_refilled", {})
             return True
         except Exception as e:
-            logger.error("Failed to refill zones: %s", e)
+            logger.exception("Failed to refill zones: %s", e)
             return False
 
     def get_selection(self) -> list[dict[str, Any]]:
@@ -1422,7 +1422,7 @@ class IPCBoardAPI(BoardAPI):
                 for item in selection
             ]
         except Exception as e:
-            logger.error("Failed to get selection: %s", e)
+            logger.exception("Failed to get selection: %s", e)
             return []
 
     def clear_selection(self) -> bool:
@@ -1432,7 +1432,7 @@ class IPCBoardAPI(BoardAPI):
             board.clear_selection()
             return True
         except Exception as e:
-            logger.error("Failed to clear selection: %s", e)
+            logger.exception("Failed to clear selection: %s", e)
             return False
 
 
