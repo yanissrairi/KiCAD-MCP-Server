@@ -350,6 +350,110 @@ class SchematicInspector:
 
         return nets
 
+    def _build_wire_points_set(self, schematic: Schematic) -> set[tuple[float, float]]:
+        """Build a set of all wire endpoints for connection detection.
+
+        Args:
+            schematic: The schematic object to analyze.
+
+        Returns:
+            Set of (x, y) coordinates representing wire endpoints.
+        """
+        wire_points: set[tuple[float, float]] = set()
+
+        if not hasattr(schematic, "wire"):
+            return wire_points
+
+        for wire in schematic.wire:
+            if hasattr(wire, "pts") and hasattr(wire.pts, "xy"):
+                for point in wire.pts.xy:
+                    if hasattr(point, "value"):
+                        # Round to avoid floating point issues
+                        x = round(float(point.value[0]), 1)
+                        y = round(float(point.value[1]), 1)
+                        wire_points.add((x, y))
+
+        return wire_points
+
+    def _is_pin_connected(
+        self, pin_x: float, pin_y: float, wire_points: set[tuple[float, float]]
+    ) -> bool:
+        """Check if a pin position is connected to any wire.
+
+        Args:
+            pin_x: X coordinate of the pin.
+            pin_y: Y coordinate of the pin.
+            wire_points: Set of wire endpoint coordinates.
+
+        Returns:
+            True if the pin is connected to a wire, False otherwise.
+        """
+        tolerance = 0.5  # mm tolerance for connection detection
+
+        for wx, wy in wire_points:
+            if abs(pin_x - wx) < tolerance and abs(pin_y - wy) < tolerance:
+                return True
+        return False
+
+    def _should_skip_symbol(self, symbol: object, exclude_templates: bool) -> bool:
+        """Determine if a symbol should be skipped during analysis.
+
+        Args:
+            symbol: The symbol object to check.
+            exclude_templates: Whether to exclude template symbols.
+
+        Returns:
+            True if the symbol should be skipped, False otherwise.
+        """
+        if not exclude_templates:
+            return False
+
+        ref = self._get_reference(symbol)
+        return ref is not None and ref.startswith("_TEMPLATE")
+
+    def _check_symbol_pins(
+        self,
+        schematic_path: Path,
+        ref: str,
+        lib_id: str,
+        wire_points: set[tuple[float, float]],
+    ) -> list[dict[str, Any]]:
+        """Check all pins of a symbol for connections.
+
+        Args:
+            schematic_path: Path to the schematic file.
+            ref: Reference designator of the symbol.
+            lib_id: Library ID of the symbol.
+            wire_points: Set of wire endpoint coordinates.
+
+        Returns:
+            List of unconnected pin information dictionaries for this symbol.
+        """
+        unconnected: list[dict[str, Any]] = []
+
+        # Get all pins for this symbol
+        pin_defs = self._pin_locator.get_symbol_pins(schematic_path, lib_id)
+
+        for pin_num, pin_data in pin_defs.items():
+            pin_loc = self._pin_locator.get_pin_location(schematic_path, ref, pin_num)
+
+            if pin_loc:
+                pin_x = round(pin_loc[0], 1)
+                pin_y = round(pin_loc[1], 1)
+
+                if not self._is_pin_connected(pin_x, pin_y, wire_points):
+                    unconnected.append(
+                        {
+                            "component": ref,
+                            "pin": pin_num,
+                            "pinName": pin_data.get("name", ""),
+                            "pinType": pin_data.get("type", "passive"),
+                            "position": {"x": round(pin_loc[0], 2), "y": round(pin_loc[1], 2)},
+                        }
+                    )
+
+        return unconnected
+
     def _find_unconnected_pins(
         self, schematic: Schematic, schematic_path: Path, exclude_templates: bool
     ) -> list[dict[str, Any]]:
@@ -368,54 +472,23 @@ class SchematicInspector:
         if not hasattr(schematic, "symbol") or not self._pin_locator:
             return unconnected
 
-        # Build set of all wire endpoints
-        wire_points: set[tuple[float, float]] = set()
-        if hasattr(schematic, "wire"):
-            for wire in schematic.wire:
-                if hasattr(wire, "pts") and hasattr(wire.pts, "xy"):
-                    for point in wire.pts.xy:
-                        if hasattr(point, "value"):
-                            # Round to avoid floating point issues
-                            x = round(float(point.value[0]), 1)
-                            y = round(float(point.value[1]), 1)
-                            wire_points.add((x, y))
-
-        tolerance = 0.5  # mm tolerance for connection detection
-
-        def is_connected(pin_x: float, pin_y: float) -> bool:
-            """Check if a pin position is connected to any wire."""
-            for wx, wy in wire_points:
-                if abs(pin_x - wx) < tolerance and abs(pin_y - wy) < tolerance:
-                    return True
-            return False
+        wire_points = self._build_wire_points_set(schematic)
 
         # Check each component's pins
         for symbol in schematic.symbol:
-            ref = self._get_reference(symbol)
-
-            if exclude_templates and ref and ref.startswith("_TEMPLATE"):
+            if self._should_skip_symbol(symbol, exclude_templates):
                 continue
 
+            ref = self._get_reference(symbol)
             lib_id = symbol.lib_id.value if hasattr(symbol, "lib_id") else None
+
             if not lib_id or not ref:
                 continue
 
-            # Get all pins for this symbol
-            pin_defs = self._pin_locator.get_symbol_pins(schematic_path, lib_id)
-
-            for pin_num, pin_data in pin_defs.items():
-                pin_loc = self._pin_locator.get_pin_location(schematic_path, ref, pin_num)
-
-                if pin_loc and not is_connected(round(pin_loc[0], 1), round(pin_loc[1], 1)):
-                    unconnected.append(
-                        {
-                            "component": ref,
-                            "pin": pin_num,
-                            "pinName": pin_data.get("name", ""),
-                            "pinType": pin_data.get("type", "passive"),
-                            "position": {"x": round(pin_loc[0], 2), "y": round(pin_loc[1], 2)},
-                        }
-                    )
+            symbol_unconnected = self._check_symbol_pins(
+                schematic_path, ref, lib_id, wire_points
+            )
+            unconnected.extend(symbol_unconnected)
 
         return unconnected
 
