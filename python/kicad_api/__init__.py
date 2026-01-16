@@ -28,10 +28,10 @@ from kicad_api.base import (
 from kicad_api.factory import create_backend
 
 __all__ = [
+    "IPCLibraryNotFoundError",
     "KiCADBackend",
     "KiCADConnectionError",
     "NotConnectedError",
-    "IPCLibraryNotFoundError",
     "create_backend",
 ]
 __version__ = "2.0.0-alpha.1"
