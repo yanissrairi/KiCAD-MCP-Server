@@ -12,7 +12,7 @@ Warning:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from kicad_api.base import (
     APINotAvailableError,
@@ -260,6 +260,7 @@ class SWIGBoardAPI(BoardAPI):
             return result.get("components", [])
         return []
 
+    @override
     def place_component(
         self,
         reference: str,
