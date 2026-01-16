@@ -41,77 +41,103 @@ class PlatformHelper:
         return system
 
     @staticmethod
+    def _get_windows_kicad_paths() -> list[Path]:
+        """Get KiCAD Python paths for Windows.
+
+        Returns:
+            List of existing paths
+        """
+        paths = []
+        program_files = [
+            Path("C:/Program Files/KiCad"),
+            Path("C:/Program Files (x86)/KiCad"),
+        ]
+        for pf in program_files:
+            # Check multiple KiCAD versions
+            for version in ["9.0", "9.1", "10.0", "8.0"]:
+                path = pf / version / "lib" / "python3" / "dist-packages"
+                if path.exists():
+                    paths.append(path)
+        return paths
+
+    @staticmethod
+    def _get_linux_kicad_paths() -> list[Path]:
+        """Get KiCAD Python paths for Linux.
+
+        Returns:
+            List of existing paths
+        """
+        candidates = [
+            Path("/usr/lib/kicad/lib/python3/dist-packages"),
+            Path("/usr/share/kicad/scripting/plugins"),
+            Path("/usr/local/lib/kicad/lib/python3/dist-packages"),
+            Path.home() / ".local/lib/kicad/lib/python3/dist-packages",
+        ]
+
+        # Also check based on Python version
+        py_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        candidates.extend(
+            [
+                Path(f"/usr/lib/python{py_version}/dist-packages/kicad"),
+                Path(f"/usr/local/lib/python{py_version}/dist-packages/kicad"),
+            ]
+        )
+
+        # Check system Python dist-packages (modern KiCAD 9+ on Ubuntu/Debian)
+        # This is where pcbnew.py typically lives on modern systems
+        candidates.extend(
+            [
+                Path("/usr/lib/python3/dist-packages"),
+                Path(f"/usr/lib/python{py_version}/dist-packages"),
+                Path("/usr/local/lib/python3/dist-packages"),
+                Path(f"/usr/local/lib/python{py_version}/dist-packages"),
+            ]
+        )
+
+        return [p for p in candidates if p.exists()]
+
+    @staticmethod
+    def _get_macos_kicad_paths() -> list[Path]:
+        """Get KiCAD Python paths for macOS.
+
+        Returns:
+            List of existing paths
+        """
+        paths = []
+        kicad_app = Path("/Applications/KiCad/KiCad.app")
+        if kicad_app.exists():
+            # Check Python framework path
+            for version in ["3.9", "3.10", "3.11", "3.12"]:
+                path = (
+                    kicad_app
+                    / "Contents"
+                    / "Frameworks"
+                    / "Python.framework"
+                    / "Versions"
+                    / version
+                    / "lib"
+                    / f"python{version}"
+                    / "site-packages"
+                )
+                if path.exists():
+                    paths.append(path)
+        return paths
+
+    @staticmethod
     def get_kicad_python_paths() -> list[Path]:
         """Get potential KiCAD Python dist-packages paths for current platform.
 
         Returns:
             List of potential paths to check (in priority order)
         """
-        paths = []
-
         if PlatformHelper.is_windows():
-            # Windows: Check Program Files
-            program_files = [
-                Path("C:/Program Files/KiCad"),
-                Path("C:/Program Files (x86)/KiCad"),
-            ]
-            for pf in program_files:
-                # Check multiple KiCAD versions
-                for version in ["9.0", "9.1", "10.0", "8.0"]:
-                    path = pf / version / "lib" / "python3" / "dist-packages"
-                    if path.exists():
-                        paths.append(path)
-
+            paths = PlatformHelper._get_windows_kicad_paths()
         elif PlatformHelper.is_linux():
-            # Linux: Check common installation paths
-            candidates = [
-                Path("/usr/lib/kicad/lib/python3/dist-packages"),
-                Path("/usr/share/kicad/scripting/plugins"),
-                Path("/usr/local/lib/kicad/lib/python3/dist-packages"),
-                Path.home() / ".local/lib/kicad/lib/python3/dist-packages",
-            ]
-
-            # Also check based on Python version
-            py_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-            candidates.extend(
-                [
-                    Path(f"/usr/lib/python{py_version}/dist-packages/kicad"),
-                    Path(f"/usr/local/lib/python{py_version}/dist-packages/kicad"),
-                ]
-            )
-
-            # Check system Python dist-packages (modern KiCAD 9+ on Ubuntu/Debian)
-            # This is where pcbnew.py typically lives on modern systems
-            candidates.extend(
-                [
-                    Path("/usr/lib/python3/dist-packages"),
-                    Path(f"/usr/lib/python{py_version}/dist-packages"),
-                    Path("/usr/local/lib/python3/dist-packages"),
-                    Path(f"/usr/local/lib/python{py_version}/dist-packages"),
-                ]
-            )
-
-            paths = [p for p in candidates if p.exists()]
-
+            paths = PlatformHelper._get_linux_kicad_paths()
         elif PlatformHelper.is_macos():
-            # macOS: Check application bundle
-            kicad_app = Path("/Applications/KiCad/KiCad.app")
-            if kicad_app.exists():
-                # Check Python framework path
-                for version in ["3.9", "3.10", "3.11", "3.12"]:
-                    path = (
-                        kicad_app
-                        / "Contents"
-                        / "Frameworks"
-                        / "Python.framework"
-                        / "Versions"
-                        / version
-                        / "lib"
-                        / f"python{version}"
-                        / "site-packages"
-                    )
-                    if path.exists():
-                        paths.append(path)
+            paths = PlatformHelper._get_macos_kicad_paths()
+        else:
+            paths = []
 
         if not paths:
             logger.warning("No KiCAD Python paths found for %s", PlatformHelper.get_platform_name())
