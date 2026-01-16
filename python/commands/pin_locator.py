@@ -29,6 +29,90 @@ class PinLocator:
         self.pin_definition_cache: dict[str, dict[str, dict[str, Any]]] = {}
 
     @staticmethod
+    def _is_pin_definition(sexp: Any) -> bool:
+        """Check if an S-expression is a pin definition.
+
+        Args:
+            sexp: S-expression to check
+
+        Returns:
+            True if this is a pin definition, False otherwise
+        """
+        return isinstance(sexp, list) and len(sexp) > 0 and sexp[0] == Symbol("pin")
+
+    @staticmethod
+    def _create_pin_data(sexp: list[Any]) -> dict[str, Any]:
+        """Create initial pin data structure with default values.
+
+        Args:
+            sexp: Pin S-expression
+
+        Returns:
+            Pin data dictionary with defaults
+        """
+        return {
+            "x": 0,
+            "y": 0,
+            "angle": 0,
+            "length": 0,
+            "name": "",
+            "number": "",
+            "type": str(sexp[1]) if len(sexp) > 1 else "passive",
+        }
+
+    @staticmethod
+    def _extract_pin_attributes(sexp: list[Any], pin_data: dict[str, Any]) -> None:
+        """Extract pin attributes from S-expression.
+
+        Args:
+            sexp: Pin S-expression
+            pin_data: Pin data dictionary to populate (modified in place)
+        """
+        for item in sexp:
+            if not isinstance(item, list) or len(item) == 0:
+                continue
+
+            if item[0] == Symbol("at") and len(item) >= 3:  # noqa: PLR2004
+                pin_data["x"] = float(item[1])
+                pin_data["y"] = float(item[2])
+                if len(item) >= 4:  # noqa: PLR2004
+                    pin_data["angle"] = float(item[3])
+
+            elif item[0] == Symbol("length") and len(item) >= 2:  # noqa: PLR2004
+                pin_data["length"] = float(item[1])
+
+            elif item[0] == Symbol("name") and len(item) >= 2:  # noqa: PLR2004
+                pin_data["name"] = str(item[1]).strip('"')
+
+            elif item[0] == Symbol("number") and len(item) >= 2:  # noqa: PLR2004
+                pin_data["number"] = str(item[1]).strip('"')
+
+    @staticmethod
+    def _extract_pins_recursive(sexp: Any, pins: dict[str, dict[str, Any]]) -> None:
+        """Recursively search for pin definitions in S-expression.
+
+        Args:
+            sexp: S-expression to search through
+            pins: Dictionary to store found pins (modified in place)
+        """
+        if not isinstance(sexp, list):
+            return
+
+        # Check if this is a pin definition
+        if PinLocator._is_pin_definition(sexp):
+            pin_data = PinLocator._create_pin_data(sexp)
+            PinLocator._extract_pin_attributes(sexp, pin_data)
+
+            # Store by pin number
+            if pin_data["number"]:
+                pins[pin_data["number"]] = pin_data
+
+        # Recurse into sublists
+        for item in sexp:
+            if isinstance(item, list):
+                PinLocator._extract_pins_recursive(item, pins)
+
+    @staticmethod
     def parse_symbol_definition(symbol_def: Sequence[Any]) -> dict[str, dict[str, Any]]:
         """Parse a symbol definition from lib_symbols to extract pin information.
 
@@ -43,57 +127,7 @@ class PinLocator:
             }
         """
         pins: dict[str, dict[str, Any]] = {}
-
-        def extract_pins_recursive(sexp: Any) -> None:
-            """Recursively search for pin definitions.
-
-            Args:
-                sexp: S-expression to search through
-            """
-            if not isinstance(sexp, list):
-                return
-
-            # Check if this is a pin definition
-            if len(sexp) > 0 and sexp[0] == Symbol("pin"):
-                # Pin format: (pin type shape (at x y angle) (length len) (name "name") (number "num"))
-                pin_data: dict[str, Any] = {
-                    "x": 0,
-                    "y": 0,
-                    "angle": 0,
-                    "length": 0,
-                    "name": "",
-                    "number": "",
-                    "type": str(sexp[1]) if len(sexp) > 1 else "passive",
-                }
-
-                # Extract pin attributes
-                for item in sexp:
-                    if isinstance(item, list) and len(item) > 0:
-                        if item[0] == Symbol("at") and len(item) >= 3:  # noqa: PLR2004
-                            pin_data["x"] = float(item[1])
-                            pin_data["y"] = float(item[2])
-                            if len(item) >= 4:  # noqa: PLR2004
-                                pin_data["angle"] = float(item[3])
-
-                        elif item[0] == Symbol("length") and len(item) >= 2:  # noqa: PLR2004
-                            pin_data["length"] = float(item[1])
-
-                        elif item[0] == Symbol("name") and len(item) >= 2:  # noqa: PLR2004
-                            pin_data["name"] = str(item[1]).strip('"')
-
-                        elif item[0] == Symbol("number") and len(item) >= 2:  # noqa: PLR2004
-                            pin_data["number"] = str(item[1]).strip('"')
-
-                # Store by pin number
-                if pin_data["number"]:
-                    pins[pin_data["number"]] = pin_data
-
-            # Recurse into sublists
-            for item in sexp:
-                if isinstance(item, list):
-                    extract_pins_recursive(item)
-
-        extract_pins_recursive(list(symbol_def))
+        PinLocator._extract_pins_recursive(list(symbol_def), pins)
         return pins
 
     def get_symbol_pins(self, schematic_path: Path, lib_id: str) -> dict[str, dict[str, Any]]:
