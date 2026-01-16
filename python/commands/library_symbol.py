@@ -24,6 +24,9 @@ _SCORE_DESCRIPTION_MATCH = 50
 _SCORE_MANUFACTURER_MATCH = 30
 _SCORE_CATEGORY_MATCH = 20
 
+# Library testing/demo iteration limit
+LIBRARY_TEST_LIMIT = 10
+
 
 @dataclass
 class SymbolInfo:
@@ -622,9 +625,9 @@ if __name__ == "__main__":
 
     manager = SymbolLibraryManager()
 
-    for _name in list(manager.libraries.keys())[:10]:
+    for _name in list(manager.libraries.keys())[:LIBRARY_TEST_LIMIT]:
         pass
-    if len(manager.libraries) > 10:
+    if len(manager.libraries) > LIBRARY_TEST_LIMIT:
         pass
 
     # Test search

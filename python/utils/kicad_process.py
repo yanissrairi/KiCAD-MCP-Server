@@ -25,6 +25,9 @@ _PROCESS_WAIT_ITERATIONS = 10
 _PROCESS_WAIT_INTERVAL = 0.5
 _SUBPROCESS_TIMEOUT = 5
 
+# Pointer size for 64-bit architecture detection (bytes)
+POINTER_SIZE_64BIT = 8
+
 
 class KiCADProcessManager:
     """Manages KiCAD process detection and launching."""
@@ -43,7 +46,9 @@ class KiCADProcessManager:
                 ulong_ptr = wintypes.ULONG_PTR  # type: ignore[attr-defined]
             except AttributeError:
                 ulong_ptr = (
-                    ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
+                    ctypes.c_ulonglong
+                    if ctypes.sizeof(ctypes.c_void_p) == POINTER_SIZE_64BIT
+                    else ctypes.c_ulong
                 )
 
             class PROCESSENTRY32W(ctypes.Structure):

@@ -8,6 +8,12 @@ import pcbnew
 
 logger = logging.getLogger("kicad_interface")
 
+# Minimum points required for polygon zone
+MIN_POLYGON_POINTS = 3
+
+# Track search radius in nanometers (KiCAD internal unit: 1mm = 1,000,000 nm)
+TRACK_SEARCH_RADIUS_NM = 1_000_000  # 1mm
+
 
 class RoutingCommands:
     """Handles routing-related KiCAD operations."""
@@ -336,7 +342,7 @@ class RoutingCommands:
                         min_distance = dist
                         closest_track = track
 
-                if closest_track and min_distance < 1000000:  # Within 1mm
+                if closest_track and min_distance < TRACK_SEARCH_RADIUS_NM:  # Within 1mm
                     self.board.Remove(closest_track)
                     return {"success": True, "message": "Deleted track at specified position"}
                 return {
@@ -456,7 +462,7 @@ class RoutingCommands:
             priority = params.get("priority", 0)
             fill_type = params.get("fillType", "solid")  # solid or hatched
 
-            if not points or len(points) < 3:
+            if not points or len(points) < MIN_POLYGON_POINTS:
                 return {
                     "success": False,
                     "message": "Missing points",

@@ -10,6 +10,9 @@ from commands.library import LibraryManager
 
 logger = logging.getLogger("kicad_interface")
 
+# Minimum components required for grouping operation
+MIN_COMPONENTS_FOR_GROUP = 2
+
 
 class ComponentCommands:
     """Handles component-related KiCAD operations."""
@@ -625,7 +628,7 @@ class ComponentCommands:
             distribution = params.get("distribution", "none")  # none, equal, or spacing
             spacing = params.get("spacing")
 
-            if not references or len(references) < 2:
+            if not references or len(references) < MIN_COMPONENTS_FOR_GROUP:
                 return {
                     "success": False,
                     "message": "Missing references",

@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("kicad_interface")
 
+# S-expression property structure: [Symbol("property"), name, value, ...]
+MIN_PROPERTY_ELEMENTS = 3
+
 
 class DynamicSymbolLoader:
     """Dynamically loads symbols from KiCad library files and injects them into schematics.
@@ -379,7 +382,7 @@ class DynamicSymbolLoader:
             for prop in item:
                 if (
                     isinstance(prop, list)
-                    and len(prop) > 2
+                    and len(prop) > MIN_PROPERTY_ELEMENTS - 1
                     and prop[0] == Symbol("property")
                     and prop[1] == "Reference"
                     and prop[2] == template_ref
@@ -409,7 +412,7 @@ class DynamicSymbolLoader:
             for p in item:
                 if (
                     isinstance(p, list)
-                    and len(p) > 2
+                    and len(p) > MIN_PROPERTY_ELEMENTS - 1
                     and p[0] == Symbol("property")
                     and p[1] == "Reference"
                     and str(p[2]).startswith("_TEMPLATE")

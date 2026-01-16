@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 MM_TO_NM = 1_000_000
 INCH_TO_NM = 25_400_000
 
+# Float comparison tolerance for size validation
+FLOAT_COMPARISON_EPSILON = 0.001
+
+# Minimum points required for zone polygon
+MIN_ZONE_POINTS = 3
+
 
 class IPCBackend(KiCADBackend):
     """KiCAD IPC API backend for real-time UI synchronization.
@@ -981,7 +987,7 @@ class IPCBoardAPI(BoardAPI):
 
             # Warn if non-default size is requested
             default_size = 1.0
-            if abs(size - default_size) > 0.001:
+            if abs(size - default_size) > FLOAT_COMPARISON_EPSILON:
                 logger.warning(
                     "Text size configuration not supported via kipy API. "
                     "Requested size: %.2fmm will be ignored. Text will use default size.",
@@ -1148,7 +1154,7 @@ class IPCBoardAPI(BoardAPI):
 
             board = self._get_board()
 
-            if len(points) < 3:
+            if len(points) < MIN_ZONE_POINTS:
                 logger.error("Zone requires at least 3 points")
                 return False
 

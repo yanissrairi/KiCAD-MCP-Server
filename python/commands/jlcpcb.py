@@ -8,6 +8,7 @@ import base64
 from collections.abc import Callable
 import hashlib
 import hmac
+from http import HTTPStatus
 import json
 import logging
 import os
@@ -206,7 +207,7 @@ class JLCPCBClient:
             response.raise_for_status()
             data: dict[str, Any] = response.json()
 
-            if data.get("code") != 200:
+            if data.get("code") != HTTPStatus.OK:
                 msg = (
                     f"API request failed (code {data.get('code')}): "
                     f"{data.get('msg', 'Unknown error')} - Full response: {data}"
