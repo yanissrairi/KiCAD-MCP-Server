@@ -43,6 +43,39 @@ class IPCBackend(KiCADBackend):
         self._version = None
         self._on_change_callbacks: list[Callable] = []
 
+    def _try_connect_to_socket(self, socket_paths: list[str | None]) -> None:
+        """Try to connect to KiCAD via socket paths.
+
+        Args:
+            socket_paths: List of socket paths to try
+
+        Raises:
+            KiCADConnectionError: If no path succeeds
+        """
+        from kipy import KiCad
+
+        last_error = None
+        for path in socket_paths:
+            try:
+                if path:
+                    logger.debug("Trying socket path: %s", path)
+                    self._kicad = KiCad(socket_path=path)
+                else:
+                    logger.debug("Trying auto-detection")
+                    self._kicad = KiCad()
+
+                # Verify connection with ping (ping returns None on success)
+                self._kicad.ping()
+                logger.info(f"Connected via socket: {path or 'auto-detected'}")
+                return
+            except Exception as e:
+                last_error = e
+                logger.debug("Failed to connect via %s: %s", path, e)
+
+        # None of the paths worked
+        msg = f"Could not connect to KiCAD IPC: {last_error}"
+        raise KiCADConnectionError(msg)
+
     def connect(self, socket_path: str | None = None) -> bool:
         """Connect to running KiCAD instance via IPC.
 
@@ -58,7 +91,7 @@ class IPCBackend(KiCADBackend):
         """
         try:
             # Import here to allow module to load even without kicad-python
-            from kipy import KiCad
+            from kipy import KiCad  # noqa: F401
 
             logger.info("Connecting to KiCAD via IPC...")
 
@@ -71,30 +104,10 @@ class IPCBackend(KiCADBackend):
                 socket_paths_to_try = [
                     "ipc:///tmp/kicad/api.sock",  # Linux default
                     f"ipc:///run/user/{os.getuid()}/kicad/api.sock",  # XDG runtime
-                    None  # Let kipy auto-detect
+                    None,  # Let kipy auto-detect
                 ]
 
-            last_error = None
-            for path in socket_paths_to_try:
-                try:
-                    if path:
-                        logger.debug("Trying socket path: %s", path)
-                        self._kicad = KiCad(socket_path=path)
-                    else:
-                        logger.debug("Trying auto-detection")
-                        self._kicad = KiCad()
-
-                    # Verify connection with ping (ping returns None on success)
-                    self._kicad.ping()
-                    logger.info(f"Connected via socket: {path or 'auto-detected'}")
-                    break
-                except Exception as e:
-                    last_error = e
-                    logger.debug("Failed to connect via %s: %s", path, e)
-                    continue
-            else:
-                # None of the paths worked
-                raise KiCADConnectionError(f"Could not connect to KiCAD IPC: {last_error}")
+            self._try_connect_to_socket(socket_paths_to_try)
 
             # Get version info
             self._version = self._get_kicad_version()
