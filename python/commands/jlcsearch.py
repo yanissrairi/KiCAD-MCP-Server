@@ -4,9 +4,9 @@ Alternative to official JLCPCB API using the community-maintained
 jlcsearch service at https://jlcsearch.tscircuit.com/
 """
 
+from collections.abc import Callable
 import logging
 import time
-from collections.abc import Callable
 from typing import Any
 
 import requests

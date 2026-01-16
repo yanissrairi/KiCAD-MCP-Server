@@ -1,13 +1,13 @@
 """Design rules command implementations for KiCAD interface."""
 
+from collections.abc import Sequence
 import json
 import logging
+from pathlib import Path
 import platform
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Sequence
-from pathlib import Path
 from typing import Any
 
 import pcbnew

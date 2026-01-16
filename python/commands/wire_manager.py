@@ -8,8 +8,8 @@ manipulate the .kicad_sch file directly.
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import TYPE_CHECKING
+import uuid
 
 import sexpdata
 from sexpdata import Symbol

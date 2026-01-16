@@ -5,12 +5,12 @@ from __future__ import annotations
 import csv
 import json
 import logging
+from pathlib import Path
 import platform
 import shutil
 import subprocess
-import xml.etree.ElementTree as ET
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
+import xml.etree.ElementTree as ET
 
 import pcbnew
 

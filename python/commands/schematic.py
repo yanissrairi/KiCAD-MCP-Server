@@ -5,8 +5,8 @@ saving, and extracting metadata from KiCAD schematic files.
 """
 
 import logging
-import shutil
 from pathlib import Path
+import shutil
 from typing import Any
 
 from skip import Schematic

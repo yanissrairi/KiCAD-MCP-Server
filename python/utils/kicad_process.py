@@ -6,13 +6,13 @@ Detects if KiCAD is running and provides auto-launch functionality.
 from __future__ import annotations
 
 import ctypes
+from ctypes import wintypes
 import logging
+from pathlib import Path
 import platform
 import shutil
 import subprocess
 import time
-from ctypes import wintypes
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:

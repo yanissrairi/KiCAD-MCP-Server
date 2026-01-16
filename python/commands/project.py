@@ -1,9 +1,9 @@
 """Project-related command implementations for KiCAD interface."""
 
-import logging
-import shutil
 from datetime import UTC, datetime
+import logging
 from pathlib import Path
+import shutil
 from typing import Any
 
 import pcbnew  # type: ignore[import-untyped]

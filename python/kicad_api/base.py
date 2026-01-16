@@ -3,8 +3,8 @@
 Defines the interface that all KiCAD backends must implement.
 """
 
-import logging
 from abc import ABC, abstractmethod
+import logging
 from pathlib import Path
 from typing import Any
 

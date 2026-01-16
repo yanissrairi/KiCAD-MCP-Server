@@ -5,6 +5,7 @@ for integration with KiCAD component selection.
 """
 
 import base64
+from collections.abc import Callable
 import hashlib
 import hmac
 import json
@@ -13,7 +14,6 @@ import os
 import secrets
 import string
 import time
-from collections.abc import Callable
 from typing import Any
 
 import requests

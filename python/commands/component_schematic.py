@@ -9,8 +9,8 @@ Provides component management capabilities for AI-assisted schematic design:
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import TYPE_CHECKING, Any, ClassVar
+import uuid
 
 if TYPE_CHECKING:
     from pathlib import Path

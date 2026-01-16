@@ -11,10 +11,10 @@ import contextlib
 import json
 import logging
 import os
+from pathlib import Path
 import subprocess
 import sys
 import traceback
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from resources.resource_definitions import RESOURCE_DEFINITIONS, handle_resource_read
@@ -275,8 +275,7 @@ try:
     from commands.jlcpcb import JLCPCBClient
     from commands.jlcpcb_parts import JLCPCBPartsManager
     from commands.jlcsearch import JLCSearchClient
-    from commands.library import LibraryCommands
-    from commands.library import LibraryManager as FootprintLibraryManager
+    from commands.library import LibraryCommands, LibraryManager as FootprintLibraryManager
     from commands.library_schematic import (
         LibraryManager as SchematicLibraryManager,
     )

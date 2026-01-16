@@ -10,8 +10,8 @@ Provides comprehensive inspection capabilities for AI-assisted schematic design:
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING, Any
 
 from skip import Schematic

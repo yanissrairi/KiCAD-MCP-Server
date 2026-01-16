@@ -6,11 +6,11 @@ and component selection.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 import logging
-import sqlite3
-from datetime import UTC, datetime
 from pathlib import Path
+import sqlite3
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:

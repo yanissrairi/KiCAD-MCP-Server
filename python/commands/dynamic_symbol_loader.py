@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import logging
 import os
-import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+import uuid
 
 import sexpdata
 from sexpdata import Symbol

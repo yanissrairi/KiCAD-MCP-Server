@@ -4,11 +4,11 @@ Handles parsing sym-lib-table files, discovering symbols,
 and providing search functionality for component selection.
 """
 
+from dataclasses import asdict, dataclass
 import logging
 import os
-import re
-from dataclasses import asdict, dataclass
 from pathlib import Path
+import re
 from typing import Any
 
 logger = logging.getLogger("kicad_interface")
