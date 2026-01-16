@@ -1,0 +1,133 @@
+# Lefthook configuration for KiCAD-MCP-Server
+# Fast and powerful Git hooks manager for Python + TypeScript project
+# See https://lefthook.github.io for more information
+
+# Fail on any hook error (fail fast)
+fail: fast
+
+# Parallel execution for performance
+pre-commit:
+  parallel: true
+  commands:
+    # ============================================================================
+    # Python Linting & Type Checking (via uv)
+    # ============================================================================
+
+    ruff-check:
+      glob: "python/**/*.py"
+      name: Ruff (lint + fix)
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+
+    ruff-format:
+      glob: "python/**/*.py"
+      name: Ruff (format)
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+    pyright:
+      glob: "python/**/*.py"
+      name: Pyright (type check)
+      run: uv run pyright python/
+      pass_filename: false
+
+    bandit:
+      glob: "python/**/*.py"
+      name: Bandit (security audit)
+      run: uv run bandit -c pyproject.toml -r python/
+      pass_filename: false
+
+    vulture:
+      glob: "python/**/*.py"
+      name: Vulture (dead code detection)
+      run: uv run vulture python/ --min-confidence 80
+      pass_filename: false
+
+    # ============================================================================
+    # TypeScript/JavaScript Formatting & Type Checking
+    # ============================================================================
+
+    prettier:
+      glob: "src/**/*.{ts,js,json,yaml,md}"
+      name: Prettier (format TS/JS/JSON/YAML/Markdown)
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+
+    typescript:
+      glob: "src/**/*.ts"
+      name: TypeScript (type check)
+      run: npx tsc --noEmit
+      pass_filename: false
+
+    # ============================================================================
+    # General File Checks
+    # ============================================================================
+
+    trailing-whitespace:
+      glob: "{python/**/*.py,src/**/*.ts,src/**/*.js}"
+      name: Trim trailing whitespace
+      run: sed -i 's/[[:space:]]*$//' {staged_files}
+      stage_fixed: true
+
+    end-of-file-fixer:
+      glob: "{python/**/*.py,src/**/*.ts,src/**/*.js}"
+      name: Fix end of file
+      run: bash -c 'for file in {staged_files}; do [[ -f "$file" ]] && [[ -n "$(tail -c1 "$file")" ]] && echo >> "$file"; done'
+      stage_fixed: true
+
+    # ============================================================================
+    # YAML & JSON Validation
+    # ============================================================================
+
+    check-yaml:
+      glob: "*.yaml,*.yml"
+      name: Check YAML syntax
+      run: npx yaml-validator {staged_files}
+      pass_filename: true
+
+    check-json:
+      glob: "*.json"
+      name: Check JSON syntax
+      run: npx jsonlint-cli {staged_files}
+      pass_filename: true
+
+    # ============================================================================
+    # Security & Large Files
+    # ============================================================================
+
+    detect-private-key:
+      glob: "{python/**/*.py,src/**/*.ts,src/**/*.js,*.yaml,*.yml,*.json}"
+      name: Detect private keys
+      run: bash -c 'if grep -rlE "PRIVATE KEY|password|secret|api.?key" {staged_files} 2>/dev/null; then echo "Potential secrets detected!"; exit 1; fi'
+      pass_filename: false
+
+    check-large-files:
+      glob: "*"
+      name: Check for large files (>500KB)
+      run: bash -c 'for file in {staged_files}; do size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null); if [ "$size" -gt 524288 ]; then echo "$file is too large"; exit 1; fi; done'
+      pass_filename: false
+
+# Optional: Post-commit hook for additional verification
+post-commit:
+  parallel: true
+  commands:
+    build-ts:
+      glob: "src/**/*.ts"
+      name: Build TypeScript (verify no build errors)
+      run: npm run build
+      pass_filename: false
+
+post-merge:
+  parallel: true
+  commands:
+    update-deps-python:
+      glob: "pyproject.toml,uv.lock"
+      name: Update Python dependencies
+      run: uv sync
+      pass_filename: false
+
+    update-deps-js:
+      glob: "package.json,package-lock.json"
+      name: Update JavaScript dependencies
+      run: npm install
+      pass_filename: false
