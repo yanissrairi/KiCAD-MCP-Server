@@ -1138,6 +1138,7 @@ class IPCBoardAPI(BoardAPI):
         """
         try:
             from kipy.board_types import Zone, ZoneFillMode, ZoneType
+            from kipy.common_types import PolygonWithHoles
             from kipy.geometry import PolyLine, PolyLineNode
             from kipy.proto.board.board_types_pb2 import BoardLayer
             from kipy.util.units import from_mm
@@ -1195,11 +1196,10 @@ class IPCBoardAPI(BoardAPI):
                 node = PolyLineNode.from_xy(from_mm(x), from_mm(y))
                 outline.append(node)
 
-            # Set the outline on the zone
-            # Note: Zone outline is set via the proto directly since kipy
-            # doesn't expose a direct setter for creating new zones
-            zone._proto.outline.polygons.add()
-            zone._proto.outline.polygons[0].outline.CopyFrom(outline._proto)
+            # Set the outline on the zone using the public API
+            polygon = PolygonWithHoles()
+            polygon.outline = outline
+            zone.outline = polygon
 
             # Add zone with transaction
             commit = board.begin_commit()
