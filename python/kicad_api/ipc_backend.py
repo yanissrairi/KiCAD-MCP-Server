@@ -1,4 +1,4 @@
-"""IPC API Backend (KiCAD 9.0+)
+"""IPC API Backend (KiCAD 9.0+).
 
 Uses the official kicad-python library for inter-process communication
 with a running KiCAD instance. This enables REAL-TIME UI synchronization.
