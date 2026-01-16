@@ -1,30 +1,75 @@
-"""
-Routing-related command implementations for KiCAD interface
-"""
+"""Routing-related command implementations for KiCAD interface."""
 
-import os
-import pcbnew
 import logging
 import math
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any
 
-logger = logging.getLogger('kicad_interface')
+import pcbnew
+
+logger = logging.getLogger("kicad_interface")
+
 
 class RoutingCommands:
-    """Handles routing-related KiCAD operations"""
+    """Handles routing-related KiCAD operations."""
 
-    def __init__(self, board: Optional[pcbnew.BOARD] = None):
-        """Initialize with optional board instance"""
+    def __init__(self, board: pcbnew.BOARD | None = None) -> None:
+        """Initialize with optional board instance."""
         self.board = board
 
-    def add_net(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Add a new net to the PCB"""
+    def _apply_netclass_properties(
+        self, netclass: pcbnew.NETCLASS, params: dict[str, Any]
+    ) -> None:
+        """Apply properties to a netclass using data-driven approach.
+
+        Args:
+            netclass: The netclass object to configure.
+            params: Dictionary of parameters to apply.
+        """
+        scale = 1000000  # mm to nm
+
+        # Define property mappings: param_key -> (setter_method, needs_scaling)
+        property_setters = {
+            "clearance": ("SetClearance", True),
+            "trackWidth": ("SetTrackWidth", True),
+            "viaDiameter": ("SetViaDiameter", True),
+            "viaDrill": ("SetViaDrill", True),
+            "uviaDiameter": ("SetMicroViaDiameter", True),
+            "uviaDrill": ("SetMicroViaDrill", True),
+            "diffPairWidth": ("SetDiffPairWidth", True),
+            "diffPairGap": ("SetDiffPairGap", True),
+        }
+
+        # Apply properties from params
+        for param_key, (setter_name, needs_scaling) in property_setters.items():
+            value = params.get(param_key)
+            if value is not None:
+                setter = getattr(netclass, setter_name)
+                setter(int(value * scale) if needs_scaling else value)
+
+    def _assign_nets_to_netclass(
+        self, netclass: pcbnew.NETCLASS, net_names: list[str]
+    ) -> None:
+        """Assign nets to a netclass.
+
+        Args:
+            netclass: The netclass to assign nets to.
+            net_names: List of net names to assign.
+        """
+        netinfo = self.board.GetNetInfo()
+        nets_map = netinfo.NetsByName()
+        for net_name in net_names:
+            if net_name in nets_map:
+                net = nets_map[net_name]
+                net.SetClass(netclass)
+
+    def add_net(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Add a new net to the PCB."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             name = params.get("name")
@@ -34,13 +79,13 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Missing net name",
-                    "errorDetails": "name parameter is required"
+                    "errorDetails": "name parameter is required",
                 }
 
             # Create new net
             netinfo = self.board.GetNetInfo()
             nets_map = netinfo.NetsByName()
-            if nets_map.has_key(name):
+            if name in nets_map:
                 net = nets_map[name]
             else:
                 net = pcbnew.NETINFO_ITEM(self.board, name)
@@ -58,26 +103,22 @@ class RoutingCommands:
                 "net": {
                     "name": name,
                     "class": net_class if net_class else "Default",
-                    "netcode": net.GetNetCode()
-                }
+                    "netcode": net.GetNetCode(),
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error adding net: {str(e)}")
-            return {
-                "success": False,
-                "message": "Failed to add net",
-                "errorDetails": str(e)
-            }
+            logger.exception("Error adding net: %s", e)
+            return {"success": False, "message": "Failed to add net", "errorDetails": str(e)}
 
-    def route_trace(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Route a trace between two points or pads"""
+    def route_trace(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Route a trace between two points or pads."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             start = params.get("start")
@@ -91,7 +132,7 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Missing parameters",
-                    "errorDetails": "start and end points are required"
+                    "errorDetails": "start and end points are required",
                 }
 
             # Get layer ID
@@ -100,7 +141,7 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Invalid layer",
-                    "errorDetails": f"Layer '{layer}' does not exist"
+                    "errorDetails": f"Layer '{layer}' does not exist",
                 }
 
             # Get start point
@@ -123,7 +164,7 @@ class RoutingCommands:
             if net:
                 netinfo = self.board.GetNetInfo()
                 nets_map = netinfo.NetsByName()
-                if nets_map.has_key(net):
+                if net in nets_map:
                     net_obj = nets_map[net]
                     track.SetNet(net_obj)
 
@@ -133,14 +174,16 @@ class RoutingCommands:
             # Add via if requested and net is specified
             if via and net:
                 via_point = end_point
-                self.add_via({
-                    "position": {
-                        "x": via_point.x / 1000000,
-                        "y": via_point.y / 1000000,
-                        "unit": "mm"
-                    },
-                    "net": net
-                })
+                self.add_via(
+                    {
+                        "position": {
+                            "x": via_point.x / 1000000,
+                            "y": via_point.y / 1000000,
+                            "unit": "mm",
+                        },
+                        "net": net,
+                    }
+                )
 
             return {
                 "success": True,
@@ -149,35 +192,27 @@ class RoutingCommands:
                     "start": {
                         "x": start_point.x / 1000000,
                         "y": start_point.y / 1000000,
-                        "unit": "mm"
+                        "unit": "mm",
                     },
-                    "end": {
-                        "x": end_point.x / 1000000,
-                        "y": end_point.y / 1000000,
-                        "unit": "mm"
-                    },
+                    "end": {"x": end_point.x / 1000000, "y": end_point.y / 1000000, "unit": "mm"},
                     "layer": layer,
                     "width": track.GetWidth() / 1000000,
-                    "net": net
-                }
+                    "net": net,
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error routing trace: {str(e)}")
-            return {
-                "success": False,
-                "message": "Failed to route trace",
-                "errorDetails": str(e)
-            }
+            logger.exception("Error routing trace: %s", e)
+            return {"success": False, "message": "Failed to route trace", "errorDetails": str(e)}
 
-    def add_via(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Add a via at the specified location"""
+    def add_via(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Add a via at the specified location."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             position = params.get("position")
@@ -191,12 +226,12 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Missing position",
-                    "errorDetails": "position parameter is required"
+                    "errorDetails": "position parameter is required",
                 }
 
             # Create via
             via = pcbnew.PCB_VIA(self.board)
-            
+
             # Set position
             scale = 1000000 if position["unit"] == "mm" else 25400000  # mm or inch to nm
             x_nm = int(position["x"] * scale)
@@ -215,7 +250,7 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Invalid layer",
-                    "errorDetails": "Specified layers do not exist"
+                    "errorDetails": "Specified layers do not exist",
                 }
             via.SetLayerPair(from_id, to_id)
 
@@ -223,7 +258,7 @@ class RoutingCommands:
             if net:
                 netinfo = self.board.GetNetInfo()
                 nets_map = netinfo.NetsByName()
-                if nets_map.has_key(net):
+                if net in nets_map:
                     net_obj = nets_map[net]
                     via.SetNet(net_obj)
 
@@ -234,35 +269,27 @@ class RoutingCommands:
                 "success": True,
                 "message": "Added via",
                 "via": {
-                    "position": {
-                        "x": position["x"],
-                        "y": position["y"],
-                        "unit": position["unit"]
-                    },
+                    "position": {"x": position["x"], "y": position["y"], "unit": position["unit"]},
                     "size": via.GetWidth() / 1000000,
                     "drill": via.GetDrill() / 1000000,
                     "from_layer": from_layer,
                     "to_layer": to_layer,
-                    "net": net
-                }
+                    "net": net,
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error adding via: {str(e)}")
-            return {
-                "success": False,
-                "message": "Failed to add via",
-                "errorDetails": str(e)
-            }
+            logger.exception("Error adding via: %s", e)
+            return {"success": False, "message": "Failed to add via", "errorDetails": str(e)}
 
-    def delete_trace(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Delete a trace from the PCB"""
+    def delete_trace(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Delete a trace from the PCB."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             trace_uuid = params.get("traceUuid")
@@ -272,7 +299,7 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Missing parameters",
-                    "errorDetails": "Either traceUuid or position must be provided"
+                    "errorDetails": "Either traceUuid or position must be provided",
                 }
 
             # Find track by UUID
@@ -287,14 +314,11 @@ class RoutingCommands:
                     return {
                         "success": False,
                         "message": "Track not found",
-                        "errorDetails": f"Could not find track with UUID: {trace_uuid}"
+                        "errorDetails": f"Could not find track with UUID: {trace_uuid}",
                     }
 
                 self.board.Remove(track)
-                return {
-                    "success": True,
-                    "message": f"Deleted track: {trace_uuid}"
-                }
+                return {"success": True, "message": f"Deleted track: {trace_uuid}"}
 
             # Find track by position
             if position:
@@ -305,7 +329,7 @@ class RoutingCommands:
 
                 # Find closest track
                 closest_track = None
-                min_distance = float('inf')
+                min_distance = float("inf")
                 for track in self.board.Tracks():
                     dist = self._point_to_track_distance(point, track)
                     if dist < min_distance:
@@ -314,33 +338,25 @@ class RoutingCommands:
 
                 if closest_track and min_distance < 1000000:  # Within 1mm
                     self.board.Remove(closest_track)
-                    return {
-                        "success": True,
-                        "message": "Deleted track at specified position"
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": "No track found",
-                        "errorDetails": "No track found near specified position"
-                    }
+                    return {"success": True, "message": "Deleted track at specified position"}
+                return {
+                    "success": False,
+                    "message": "No track found",
+                    "errorDetails": "No track found near specified position",
+                }
 
         except Exception as e:
-            logger.error(f"Error deleting trace: {str(e)}")
-            return {
-                "success": False,
-                "message": "Failed to delete trace",
-                "errorDetails": str(e)
-            }
+            logger.exception("Error deleting trace: %s", e)
+            return {"success": False, "message": "Failed to delete trace", "errorDetails": str(e)}
 
-    def get_nets_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Get a list of all nets in the PCB"""
+    def get_nets_list(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: ARG002
+        """Get a list of all nets in the PCB."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             nets = []
@@ -348,90 +364,55 @@ class RoutingCommands:
             for net_code in range(netinfo.GetNetCount()):
                 net = netinfo.GetNetItem(net_code)
                 if net:
-                    nets.append({
-                        "name": net.GetNetname(),
-                        "code": net.GetNetCode(),
-                        "class": net.GetClassName()
-                    })
+                    nets.append(
+                        {
+                            "name": net.GetNetname(),
+                            "code": net.GetNetCode(),
+                            "class": net.GetClassName(),
+                        }
+                    )
 
-            return {
-                "success": True,
-                "nets": nets
-            }
+            return {"success": True, "nets": nets}
 
         except Exception as e:
-            logger.error(f"Error getting nets list: {str(e)}")
-            return {
-                "success": False,
-                "message": "Failed to get nets list",
-                "errorDetails": str(e)
-            }
-            
-    def create_netclass(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new net class with specified properties"""
+            logger.exception("Error getting nets list: %s", e)
+            return {"success": False, "message": "Failed to get nets list", "errorDetails": str(e)}
+
+    def create_netclass(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Create a new net class with specified properties."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             name = params.get("name")
-            clearance = params.get("clearance")
-            track_width = params.get("trackWidth")
-            via_diameter = params.get("viaDiameter")
-            via_drill = params.get("viaDrill")
-            uvia_diameter = params.get("uviaDiameter")
-            uvia_drill = params.get("uviaDrill")
-            diff_pair_width = params.get("diffPairWidth")
-            diff_pair_gap = params.get("diffPairGap")
-            nets = params.get("nets", [])
-
             if not name:
                 return {
                     "success": False,
                     "message": "Missing netclass name",
-                    "errorDetails": "name parameter is required"
+                    "errorDetails": "name parameter is required",
                 }
 
-            # Get net classes
+            # Get or create net class
             net_classes = self.board.GetNetClasses()
-            
-            # Create new net class if it doesn't exist
             if not net_classes.Find(name):
                 netclass = pcbnew.NETCLASS(name)
                 net_classes.Add(netclass)
             else:
                 netclass = net_classes.Find(name)
 
-            # Set properties
+            # Apply netclass properties using mapping
+            self._apply_netclass_properties(netclass, params)
+
+            # Assign nets to netclass
+            nets = params.get("nets", [])
+            self._assign_nets_to_netclass(netclass, nets)
+
+            # Build response
             scale = 1000000  # mm to nm
-            if clearance is not None:
-                netclass.SetClearance(int(clearance * scale))
-            if track_width is not None:
-                netclass.SetTrackWidth(int(track_width * scale))
-            if via_diameter is not None:
-                netclass.SetViaDiameter(int(via_diameter * scale))
-            if via_drill is not None:
-                netclass.SetViaDrill(int(via_drill * scale))
-            if uvia_diameter is not None:
-                netclass.SetMicroViaDiameter(int(uvia_diameter * scale))
-            if uvia_drill is not None:
-                netclass.SetMicroViaDrill(int(uvia_drill * scale))
-            if diff_pair_width is not None:
-                netclass.SetDiffPairWidth(int(diff_pair_width * scale))
-            if diff_pair_gap is not None:
-                netclass.SetDiffPairGap(int(diff_pair_gap * scale))
-
-            # Add nets to net class
-            netinfo = self.board.GetNetInfo()
-            nets_map = netinfo.NetsByName()
-            for net_name in nets:
-                if nets_map.has_key(net_name):
-                    net = nets_map[net_name]
-                    net.SetClass(netclass)
-
             return {
                 "success": True,
                 "message": f"Created net class: {name}",
@@ -445,26 +426,26 @@ class RoutingCommands:
                     "uviaDrill": netclass.GetMicroViaDrill() / scale,
                     "diffPairWidth": netclass.GetDiffPairWidth() / scale,
                     "diffPairGap": netclass.GetDiffPairGap() / scale,
-                    "nets": nets
-                }
+                    "nets": nets,
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error creating net class: {str(e)}")
+            logger.exception("Error creating net class: %s", e)
             return {
                 "success": False,
                 "message": "Failed to create net class",
-                "errorDetails": str(e)
+                "errorDetails": str(e),
             }
-            
-    def add_copper_pour(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Add a copper pour (zone) to the PCB"""
+
+    def add_copper_pour(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Add a copper pour (zone) to the PCB."""
         try:
             if not self.board:
                 return {
                     "success": False,
                     "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
+                    "errorDetails": "Load or create a board first",
                 }
 
             layer = params.get("layer", "F.Cu")
@@ -474,12 +455,12 @@ class RoutingCommands:
             points = params.get("points", [])
             priority = params.get("priority", 0)
             fill_type = params.get("fillType", "solid")  # solid or hatched
-            
+
             if not points or len(points) < 3:
                 return {
                     "success": False,
                     "message": "Missing points",
-                    "errorDetails": "At least 3 points are required for copper pour outline"
+                    "errorDetails": "At least 3 points are required for copper pour outline",
                 }
 
             # Get layer ID
@@ -488,36 +469,36 @@ class RoutingCommands:
                 return {
                     "success": False,
                     "message": "Invalid layer",
-                    "errorDetails": f"Layer '{layer}' does not exist"
+                    "errorDetails": f"Layer '{layer}' does not exist",
                 }
 
             # Create zone
             zone = pcbnew.ZONE(self.board)
             zone.SetLayer(layer_id)
-            
+
             # Set net if provided
             if net:
                 netinfo = self.board.GetNetInfo()
                 nets_map = netinfo.NetsByName()
-                if nets_map.has_key(net):
+                if net in nets_map:
                     net_obj = nets_map[net]
                     zone.SetNet(net_obj)
-            
+
             # Set zone properties
             scale = 1000000  # mm to nm
             zone.SetAssignedPriority(priority)
-            
+
             if clearance is not None:
                 zone.SetLocalClearance(int(clearance * scale))
-            
+
             zone.SetMinThickness(int(min_width * scale))
-            
+
             # Set fill type
             if fill_type == "hatched":
                 zone.SetFillMode(pcbnew.ZONE_FILL_MODE_HATCH_PATTERN)
             else:
                 zone.SetFillMode(pcbnew.ZONE_FILL_MODE_POLYGONS)
-            
+
             # Create outline
             outline = zone.Outline()
             outline.NewOutline()  # Create a new outline contour first
@@ -528,15 +509,12 @@ class RoutingCommands:
                 x_nm = int(point["x"] * scale)
                 y_nm = int(point["y"] * scale)
                 outline.Append(pcbnew.VECTOR2I(x_nm, y_nm))  # Add point to outline
-            
+
             # Add zone to board
             self.board.Add(zone)
 
-            # Fill zone
             # Note: Zone filling can cause issues with SWIG API
-            # Comment out for now - zones will be filled when board is saved/opened in KiCAD
-            # filler = pcbnew.ZONE_FILLER(self.board)
-            # filler.Fill(self.board.Zones())
+            # Zones will be automatically filled when the board is saved/opened in KiCAD
 
             return {
                 "success": True,
@@ -548,205 +526,284 @@ class RoutingCommands:
                     "minWidth": min_width,
                     "priority": priority,
                     "fillType": fill_type,
-                    "pointCount": len(points)
-                }
+                    "pointCount": len(points),
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error adding copper pour: {str(e)}")
+            logger.exception("Error adding copper pour: %s", e)
             return {
                 "success": False,
                 "message": "Failed to add copper pour",
-                "errorDetails": str(e)
+                "errorDetails": str(e),
             }
-            
-    def route_differential_pair(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Route a differential pair between two sets of points or pads"""
+
+    def route_differential_pair(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Route a differential pair between two sets of points or pads."""
         try:
-            if not self.board:
-                return {
-                    "success": False,
-                    "message": "No board is loaded",
-                    "errorDetails": "Load or create a board first"
-                }
+            # Validate parameters and layer
+            validation_result = self._validate_diff_pair_params(params)
+            if validation_result["error"]:
+                return validation_result["error"]
+            validated = validation_result["validated"]
 
-            start_pos = params.get("startPos")
-            end_pos = params.get("endPos")
-            net_pos = params.get("netPos")
-            net_neg = params.get("netNeg")
-            layer = params.get("layer", "F.Cu")
-            width = params.get("width")
-            gap = params.get("gap")
+            # Resolve differential nets
+            nets_result = self._resolve_differential_nets(validated["net_pos"], validated["net_neg"])
+            if "error" in nets_result:
+                return nets_result["error"]
 
-            if not start_pos or not end_pos or not net_pos or not net_neg:
-                return {
-                    "success": False,
-                    "message": "Missing parameters",
-                    "errorDetails": "startPos, endPos, netPos, and netNeg are required"
-                }
+            # Calculate differential pair geometry
+            geometry = self._calculate_diff_pair_geometry(
+                validated["start_pos"], validated["end_pos"], validated["gap"]
+            )
+            if "error" in geometry:
+                return geometry["error"]
 
-            # Get layer ID
-            layer_id = self.board.GetLayerID(layer)
-            if layer_id < 0:
-                return {
-                    "success": False,
-                    "message": "Invalid layer",
-                    "errorDetails": f"Layer '{layer}' does not exist"
-                }
+            # Create differential pair tracks
+            pos_track, neg_track = self._create_diff_pair_tracks(
+                geometry, nets_result, validated["layer_id"], validated["width"]
+            )
 
-            # Get nets
-            netinfo = self.board.GetNetInfo()
-            nets_map = netinfo.NetsByName()
-
-            net_pos_obj = nets_map[net_pos] if nets_map.has_key(net_pos) else None
-            net_neg_obj = nets_map[net_neg] if nets_map.has_key(net_neg) else None
-
-            if not net_pos_obj or not net_neg_obj:
-                return {
-                    "success": False,
-                    "message": "Nets not found",
-                    "errorDetails": "One or both nets specified for the differential pair do not exist"
-                }
-
-            # Get start and end points
-            start_point = self._get_point(start_pos)
-            end_point = self._get_point(end_pos)
-            
-            # Calculate offset vectors for the two traces
-            # First, get the direction vector from start to end
-            dx = end_point.x - start_point.x
-            dy = end_point.y - start_point.y
-            length = math.sqrt(dx * dx + dy * dy)
-            
-            if length <= 0:
-                return {
-                    "success": False,
-                    "message": "Invalid points",
-                    "errorDetails": "Start and end points must be different"
-                }
-                
-            # Normalize direction vector
-            dx /= length
-            dy /= length
-            
-            # Get perpendicular vector
-            px = -dy
-            py = dx
-            
-            # Set default gap if not provided
-            if gap is None:
-                gap = 0.2  # mm
-                
-            # Convert to nm
-            gap_nm = int(gap * 1000000)
-            
-            # Calculate offsets
-            offset_x = int(px * gap_nm / 2)
-            offset_y = int(py * gap_nm / 2)
-            
-            # Create positive and negative trace points
-            pos_start = pcbnew.VECTOR2I(int(start_point.x + offset_x), int(start_point.y + offset_y))
-            pos_end = pcbnew.VECTOR2I(int(end_point.x + offset_x), int(end_point.y + offset_y))
-            neg_start = pcbnew.VECTOR2I(int(start_point.x - offset_x), int(start_point.y - offset_y))
-            neg_end = pcbnew.VECTOR2I(int(end_point.x - offset_x), int(end_point.y - offset_y))
-            
-            # Create positive trace
-            pos_track = pcbnew.PCB_TRACK(self.board)
-            pos_track.SetStart(pos_start)
-            pos_track.SetEnd(pos_end)
-            pos_track.SetLayer(layer_id)
-            pos_track.SetNet(net_pos_obj)
-            
-            # Create negative trace
-            neg_track = pcbnew.PCB_TRACK(self.board)
-            neg_track.SetStart(neg_start)
-            neg_track.SetEnd(neg_end)
-            neg_track.SetLayer(layer_id)
-            neg_track.SetNet(net_neg_obj)
-            
-            # Set width
-            if width:
-                trace_width_nm = int(width * 1000000)
-                pos_track.SetWidth(trace_width_nm)
-                neg_track.SetWidth(trace_width_nm)
-            else:
-                # Get default width from design rules or net class
-                trace_width = self.board.GetDesignSettings().GetCurrentTrackWidth()
-                pos_track.SetWidth(trace_width)
-                neg_track.SetWidth(trace_width)
-            
-            # Add tracks to board
+            # Add to board and return response
             self.board.Add(pos_track)
             self.board.Add(neg_track)
-
-            return {
-                "success": True,
-                "message": "Added differential pair traces",
-                "diffPair": {
-                    "posNet": net_pos,
-                    "negNet": net_neg,
-                    "layer": layer,
-                    "width": pos_track.GetWidth() / 1000000,
-                    "gap": gap,
-                    "length": length / 1000000
-                }
-            }
+            return self._build_diff_pair_response(
+                validated["net_pos"],
+                validated["net_neg"],
+                validated["layer"],
+                pos_track,
+                validated["gap"],
+                geometry["length"],
+            )
 
         except Exception as e:
-            logger.error(f"Error routing differential pair: {str(e)}")
+            logger.exception("Error routing differential pair: %s", e)
             return {
                 "success": False,
                 "message": "Failed to route differential pair",
-                "errorDetails": str(e)
+                "errorDetails": str(e),
             }
 
-    def _get_point(self, point_spec: Dict[str, Any]) -> pcbnew.VECTOR2I:
-        """Convert point specification to KiCAD point"""
+    def _validate_diff_pair_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Validate parameters and layer for differential pair routing.
+
+        Returns:
+            Dict with 'error' (or None) and 'validated' params.
+        """
+        if not self.board:
+            return {
+                "error": {
+                    "success": False,
+                    "message": "No board is loaded",
+                    "errorDetails": "Load or create a board first",
+                }
+            }
+
+        start_pos = params.get("startPos")
+        end_pos = params.get("endPos")
+        net_pos = params.get("netPos")
+        net_neg = params.get("netNeg")
+
+        if not start_pos or not end_pos or not net_pos or not net_neg:
+            return {
+                "error": {
+                    "success": False,
+                    "message": "Missing parameters",
+                    "errorDetails": "startPos, endPos, netPos, and netNeg are required",
+                }
+            }
+
+        layer = params.get("layer", "F.Cu")
+        layer_id = self.board.GetLayerID(layer)
+        if layer_id < 0:
+            return {
+                "error": {
+                    "success": False,
+                    "message": "Invalid layer",
+                    "errorDetails": f"Layer '{layer}' does not exist",
+                }
+            }
+
+        return {
+            "error": None,
+            "validated": {
+                "start_pos": start_pos,
+                "end_pos": end_pos,
+                "net_pos": net_pos,
+                "net_neg": net_neg,
+                "layer": layer,
+                "layer_id": layer_id,
+                "width": params.get("width"),
+                "gap": params.get("gap", 0.2),
+            },
+        }
+
+    def _resolve_differential_nets(self, net_pos: str, net_neg: str) -> dict[str, Any]:
+        """Resolve net objects for differential pair.
+
+        Returns:
+            Dict with net_pos_obj and net_neg_obj, or dict with 'error' key.
+        """
+        netinfo = self.board.GetNetInfo()
+        nets_map = netinfo.NetsByName()
+
+        net_pos_obj = nets_map.get(net_pos, None)
+        net_neg_obj = nets_map.get(net_neg, None)
+
+        if not net_pos_obj or not net_neg_obj:
+            return {
+                "error": {
+                    "success": False,
+                    "message": "Nets not found",
+                    "errorDetails": "One or both nets specified for the differential pair do not exist",
+                }
+            }
+
+        return {"net_pos_obj": net_pos_obj, "net_neg_obj": net_neg_obj}
+
+    def _calculate_diff_pair_geometry(
+        self, start_pos: dict[str, Any], end_pos: dict[str, Any], gap: float
+    ) -> dict[str, Any]:
+        """Calculate geometry for differential pair routing.
+
+        Returns:
+            Dict with points, offsets, and length, or dict with 'error' key.
+        """
+        start_point = self._get_point(start_pos)
+        end_point = self._get_point(end_pos)
+
+        # Calculate direction vector
+        dx = end_point.x - start_point.x
+        dy = end_point.y - start_point.y
+        length = math.sqrt(dx * dx + dy * dy)
+
+        if length <= 0:
+            return {
+                "error": {
+                    "success": False,
+                    "message": "Invalid points",
+                    "errorDetails": "Start and end points must be different",
+                }
+            }
+
+        # Normalize and get perpendicular
+        dx /= length
+        dy /= length
+        px = -dy
+        py = dx
+
+        # Calculate offsets
+        gap_nm = int(gap * 1000000)
+        offset_x = int(px * gap_nm / 2)
+        offset_y = int(py * gap_nm / 2)
+
+        # Create trace points
+        return {
+            "pos_start": pcbnew.VECTOR2I(int(start_point.x + offset_x), int(start_point.y + offset_y)),
+            "pos_end": pcbnew.VECTOR2I(int(end_point.x + offset_x), int(end_point.y + offset_y)),
+            "neg_start": pcbnew.VECTOR2I(int(start_point.x - offset_x), int(start_point.y - offset_y)),
+            "neg_end": pcbnew.VECTOR2I(int(end_point.x - offset_x), int(end_point.y - offset_y)),
+            "length": length,
+        }
+
+    def _create_diff_pair_tracks(
+        self, geometry: dict[str, Any], nets: dict[str, Any], layer_id: int, width: float | None
+    ) -> tuple[pcbnew.PCB_TRACK, pcbnew.PCB_TRACK]:
+        """Create positive and negative tracks for differential pair."""
+        # Create positive trace
+        pos_track = pcbnew.PCB_TRACK(self.board)
+        pos_track.SetStart(geometry["pos_start"])
+        pos_track.SetEnd(geometry["pos_end"])
+        pos_track.SetLayer(layer_id)
+        pos_track.SetNet(nets["net_pos_obj"])
+
+        # Create negative trace
+        neg_track = pcbnew.PCB_TRACK(self.board)
+        neg_track.SetStart(geometry["neg_start"])
+        neg_track.SetEnd(geometry["neg_end"])
+        neg_track.SetLayer(layer_id)
+        neg_track.SetNet(nets["net_neg_obj"])
+
+        # Set width
+        if width:
+            trace_width_nm = int(width * 1000000)
+            pos_track.SetWidth(trace_width_nm)
+            neg_track.SetWidth(trace_width_nm)
+        else:
+            trace_width = self.board.GetDesignSettings().GetCurrentTrackWidth()
+            pos_track.SetWidth(trace_width)
+            neg_track.SetWidth(trace_width)
+
+        return pos_track, neg_track
+
+    def _build_diff_pair_response(
+        self,
+        net_pos: str,
+        net_neg: str,
+        layer: str,
+        pos_track: pcbnew.PCB_TRACK,
+        gap: float,
+        length: float,
+    ) -> dict[str, Any]:
+        """Build success response for differential pair routing."""
+        return {
+            "success": True,
+            "message": "Added differential pair traces",
+            "diffPair": {
+                "posNet": net_pos,
+                "negNet": net_neg,
+                "layer": layer,
+                "width": pos_track.GetWidth() / 1000000,
+                "gap": gap,
+                "length": length / 1000000,
+            },
+        }
+
+    def _get_point(self, point_spec: dict[str, Any]) -> pcbnew.VECTOR2I:
+        """Convert point specification to KiCAD point."""
         if "x" in point_spec and "y" in point_spec:
             scale = 1000000 if point_spec.get("unit", "mm") == "mm" else 25400000
             x_nm = int(point_spec["x"] * scale)
             y_nm = int(point_spec["y"] * scale)
             return pcbnew.VECTOR2I(x_nm, y_nm)
-        elif "pad" in point_spec and "componentRef" in point_spec:
+        if "pad" in point_spec and "componentRef" in point_spec:
             module = self.board.FindFootprintByReference(point_spec["componentRef"])
             if module:
                 pad = module.FindPadByName(point_spec["pad"])
                 if pad:
                     return pad.GetPosition()
-        raise ValueError("Invalid point specification")
+        msg = "Invalid point specification"
+        raise ValueError(msg)
 
     def _point_to_track_distance(self, point: pcbnew.VECTOR2I, track: pcbnew.PCB_TRACK) -> float:
-        """Calculate distance from point to track segment"""
+        """Calculate distance from point to track segment."""
         start = track.GetStart()
         end = track.GetEnd()
-        
+
         # Vector from start to end
         v = pcbnew.VECTOR2I(end.x - start.x, end.y - start.y)
         # Vector from start to point
         w = pcbnew.VECTOR2I(point.x - start.x, point.y - start.y)
-        
+
         # Length of track squared
         c1 = v.x * v.x + v.y * v.y
         if c1 == 0:
             return self._point_distance(point, start)
-            
+
         # Projection coefficient
         c2 = float(w.x * v.x + w.y * v.y) / c1
-        
+
         if c2 < 0:
             return self._point_distance(point, start)
-        elif c2 > 1:
+        if c2 > 1:
             return self._point_distance(point, end)
-            
+
         # Point on line
-        proj = pcbnew.VECTOR2I(
-            int(start.x + c2 * v.x),
-            int(start.y + c2 * v.y)
-        )
+        proj = pcbnew.VECTOR2I(int(start.x + c2 * v.x), int(start.y + c2 * v.y))
         return self._point_distance(point, proj)
 
     def _point_distance(self, p1: pcbnew.VECTOR2I, p2: pcbnew.VECTOR2I) -> float:
-        """Calculate distance between two points"""
+        """Calculate distance between two points."""
         dx = p1.x - p2.x
         dy = p1.y - p2.y
         return (dx * dx + dy * dy) ** 0.5
