@@ -77,13 +77,15 @@ class SchematicInspector:
                 "success": True,
                 "schematic": {
                     "path": str(path),
-                    "summary": self._get_summary(schematic, exclude_templates),
+                    "summary": self._get_summary(schematic, exclude_templates=exclude_templates),
                 },
             }
 
             if include_components:
                 result["schematic"]["components"] = self._get_components(
-                    schematic, path, component_filter, exclude_templates, include_pin_details
+                    schematic, path, component_filter,
+                    exclude_templates=exclude_templates,
+                    include_pin_details=include_pin_details
                 )
 
             if include_nets:
@@ -91,7 +93,7 @@ class SchematicInspector:
 
             if include_unconnected:
                 result["schematic"]["unconnectedPins"] = self._find_unconnected_pins(
-                    schematic, path, exclude_templates
+                    schematic, path, exclude_templates=exclude_templates
                 )
 
             return result
@@ -100,7 +102,7 @@ class SchematicInspector:
             logger.exception("Error getting schematic info")
             return {"success": False, "error": "Failed to get schematic info"}
 
-    def _get_summary(self, schematic: Schematic, exclude_templates: bool) -> dict[str, Any]:
+    def _get_summary(self, schematic: Schematic, *, exclude_templates: bool) -> dict[str, Any]:
         """Get summary statistics for schematic.
 
         Args:
@@ -111,15 +113,15 @@ class SchematicInspector:
             Dictionary containing summary statistics.
         """
         summary: dict[str, Any] = {
-            "totalComponents": self._count_components(schematic, exclude_templates),
+            "totalComponents": self._count_components(schematic, exclude_templates=exclude_templates),
             "totalWires": self._count_wires(schematic),
             "totalNets": self._count_nets(schematic),
-            "boundingBox": self._calculate_bounding_box(schematic, exclude_templates),
+            "boundingBox": self._calculate_bounding_box(schematic, exclude_templates=exclude_templates),
         }
 
         return summary
 
-    def _count_components(self, schematic: Schematic, exclude_templates: bool) -> int:
+    def _count_components(self, schematic: Schematic, *, exclude_templates: bool) -> int:
         """Count components in schematic.
 
         Args:
@@ -171,7 +173,7 @@ class SchematicInspector:
         return len(net_names)
 
     def _calculate_bounding_box(
-        self, schematic: Schematic, exclude_templates: bool
+        self, schematic: Schematic, *, exclude_templates: bool
     ) -> dict[str, float]:
         """Calculate bounding box from component positions.
 
@@ -219,6 +221,7 @@ class SchematicInspector:
         schematic: Schematic,
         schematic_path: Path,
         component_filter: str | None,
+        *,
         exclude_templates: bool,
         include_pin_details: bool,
     ) -> list[dict[str, Any]]:
@@ -396,7 +399,7 @@ class SchematicInspector:
                 return True
         return False
 
-    def _should_skip_symbol(self, symbol: object, exclude_templates: bool) -> bool:
+    def _should_skip_symbol(self, symbol: object, *, exclude_templates: bool) -> bool:
         """Determine if a symbol should be skipped during analysis.
 
         Args:
@@ -456,7 +459,7 @@ class SchematicInspector:
         return unconnected
 
     def _find_unconnected_pins(
-        self, schematic: Schematic, schematic_path: Path, exclude_templates: bool
+        self, schematic: Schematic, schematic_path: Path, *, exclude_templates: bool
     ) -> list[dict[str, Any]]:
         """Find pins that are not connected to any wire or net.
 
@@ -477,7 +480,7 @@ class SchematicInspector:
 
         # Check each component's pins
         for symbol in schematic.symbol:
-            if self._should_skip_symbol(symbol, exclude_templates):
+            if self._should_skip_symbol(symbol, exclude_templates=exclude_templates):
                 continue
 
             ref = self._get_reference(symbol)
