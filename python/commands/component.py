@@ -613,7 +613,99 @@ class ComponentCommands:
                 "errorDetails": str(e),
             }
 
-    def align_components(self, params: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0911
+    def _find_components(self, references: list[str]) -> dict[str, Any]:
+        """Find all referenced components on the board.
+
+        Args:
+            references: List of component references
+
+        Returns:
+            Dictionary with success status and components list
+        """
+        components = []
+        for ref in references:
+            module = self.board.FindFootprintByReference(ref)
+            if not module:
+                return {
+                    "success": False,
+                    "message": "Component not found",
+                    "errorDetails": f"Could not find component: {ref}",
+                }
+            components.append(module)
+
+        return {"success": True, "components": components}
+
+    def _perform_alignment(
+        self, components: list[pcbnew.FOOTPRINT], params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Perform the requested alignment operation.
+
+        Args:
+            components: List of components to align
+            params: Alignment parameters
+
+        Returns:
+            Dictionary with success status
+        """
+        alignment = params.get("alignment", "horizontal")
+        distribution = params.get("distribution", "none")
+        spacing = params.get("spacing")
+
+        if alignment == "horizontal":
+            self._align_components_horizontally(components, distribution, spacing)
+        elif alignment == "vertical":
+            self._align_components_vertically(components, distribution, spacing)
+        elif alignment == "edge":
+            edge = params.get("edge")
+            if not edge:
+                return {
+                    "success": False,
+                    "message": "Missing edge parameter",
+                    "errorDetails": "Edge parameter is required for edge alignment",
+                }
+            self._align_components_to_edge(components, edge)
+        else:
+            return {
+                "success": False,
+                "message": "Invalid alignment option",
+                "errorDetails": "Alignment must be 'horizontal', 'vertical', or 'edge'",
+            }
+
+        return {"success": True}
+
+    def _build_alignment_response(
+        self, components: list[pcbnew.FOOTPRINT], alignment: str, distribution: str
+    ) -> dict[str, Any]:
+        """Build the success response for component alignment.
+
+        Args:
+            components: List of aligned components
+            alignment: Type of alignment performed
+            distribution: Type of distribution performed
+
+        Returns:
+            Success response dictionary
+        """
+        aligned_components = []
+        for module in components:
+            pos = module.GetPosition()
+            aligned_components.append(
+                {
+                    "reference": module.GetReference(),
+                    "position": {"x": pos.x / 1000000, "y": pos.y / 1000000, "unit": "mm"},
+                    "rotation": module.GetOrientation().AsDegrees(),
+                }
+            )
+
+        return {
+            "success": True,
+            "message": f"Aligned {len(components)} components",
+            "alignment": alignment,
+            "distribution": distribution,
+            "components": aligned_components,
+        }
+
+    def align_components(self, params: dict[str, Any]) -> dict[str, Any]:
         """Align multiple components along a line or distribute them evenly."""
         try:
             if not self.board:
@@ -624,10 +716,6 @@ class ComponentCommands:
                 }
 
             references = params.get("references", [])
-            alignment = params.get("alignment", "horizontal")  # horizontal, vertical, or edge
-            distribution = params.get("distribution", "none")  # none, equal, or spacing
-            spacing = params.get("spacing")
-
             if not references or len(references) < MIN_COMPONENTS_FOR_GROUP:
                 return {
                     "success": False,
@@ -635,58 +723,22 @@ class ComponentCommands:
                     "errorDetails": "At least two component references are required",
                 }
 
-            # Find all referenced components
-            components = []
-            for ref in references:
-                module = self.board.FindFootprintByReference(ref)
-                if not module:
-                    return {
-                        "success": False,
-                        "message": "Component not found",
-                        "errorDetails": f"Could not find component: {ref}",
-                    }
-                components.append(module)
+            # Find and validate components
+            components_result = self._find_components(references)
+            if not components_result["success"]:
+                return components_result
 
-            # Perform alignment based on selected option
-            if alignment == "horizontal":
-                self._align_components_horizontally(components, distribution, spacing)
-            elif alignment == "vertical":
-                self._align_components_vertically(components, distribution, spacing)
-            elif alignment == "edge":
-                edge = params.get("edge")
-                if not edge:
-                    return {
-                        "success": False,
-                        "message": "Missing edge parameter",
-                        "errorDetails": "Edge parameter is required for edge alignment",
-                    }
-                self._align_components_to_edge(components, edge)
-            else:
-                return {
-                    "success": False,
-                    "message": "Invalid alignment option",
-                    "errorDetails": "Alignment must be 'horizontal', 'vertical', or 'edge'",
-                }
+            components = components_result["components"]
 
-            # Prepare result data
-            aligned_components = []
-            for module in components:
-                pos = module.GetPosition()
-                aligned_components.append(
-                    {
-                        "reference": module.GetReference(),
-                        "position": {"x": pos.x / 1000000, "y": pos.y / 1000000, "unit": "mm"},
-                        "rotation": module.GetOrientation().AsDegrees(),
-                    }
-                )
+            # Perform alignment
+            alignment_result = self._perform_alignment(components, params)
+            if not alignment_result["success"]:
+                return alignment_result
 
-            return {
-                "success": True,
-                "message": f"Aligned {len(components)} components",
-                "alignment": alignment,
-                "distribution": distribution,
-                "components": aligned_components,
-            }
+            # Build success response
+            return self._build_alignment_response(
+                components, params.get("alignment", "horizontal"), params.get("distribution", "none")
+            )
 
         except Exception as e:
             logger.exception("Error aligning components: %s", e)
