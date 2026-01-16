@@ -119,8 +119,8 @@ def test_board_info(board_api: object) -> bool:
         return True
 
 
-def test_realtime_track(board_api: object, *, interactive: bool = False) -> bool:
-    """Test adding a track in real-time (appears immediately in KiCAD UI).
+def verify_realtime_track(board_api: object, *, interactive: bool = False) -> bool:
+    """Verify adding a track in real-time (appears immediately in KiCAD UI).
 
     Args:
         board_api: The board API instance to use.
@@ -151,8 +151,8 @@ def test_realtime_track(board_api: object, *, interactive: bool = False) -> bool
         return bool(success)
 
 
-def test_realtime_via(board_api: object, *, interactive: bool = False) -> bool:
-    """Test adding a via in real-time (appears immediately in KiCAD UI).
+def verify_realtime_via(board_api: object, *, interactive: bool = False) -> bool:
+    """Verify adding a via in real-time (appears immediately in KiCAD UI).
 
     Args:
         board_api: The board API instance to use.
@@ -182,8 +182,8 @@ def test_realtime_via(board_api: object, *, interactive: bool = False) -> bool:
         return bool(success)
 
 
-def test_realtime_text(board_api: object, *, interactive: bool = False) -> bool:
-    """Test adding text in real-time.
+def verify_realtime_text(board_api: object, *, interactive: bool = False) -> bool:
+    """Verify adding text in real-time.
 
     Args:
         board_api: The board API instance to use.
@@ -212,8 +212,8 @@ def test_realtime_text(board_api: object, *, interactive: bool = False) -> bool:
         return bool(success)
 
 
-def test_selection(board_api: object, *, interactive: bool = False) -> bool:
-    """Test getting the current selection from KiCAD UI.
+def verify_selection(board_api: object, *, interactive: bool = False) -> bool:
+    """Verify getting the current selection from KiCAD UI.
 
     Args:
         board_api: The board API instance to use.
@@ -261,12 +261,12 @@ def run_all_tests(*, interactive: bool = False) -> bool:
     test_board_info(board_api)
 
     # Test real-time modifications
-    test_realtime_track(board_api, interactive=interactive)
-    test_realtime_via(board_api, interactive=interactive)
-    test_realtime_text(board_api, interactive=interactive)
+    verify_realtime_track(board_api, interactive=interactive)
+    verify_realtime_via(board_api, interactive=interactive)
+    verify_realtime_text(board_api, interactive=interactive)
 
     # Test selection
-    test_selection(board_api, interactive=interactive)
+    verify_selection(board_api, interactive=interactive)
 
     # Cleanup
     backend.disconnect()

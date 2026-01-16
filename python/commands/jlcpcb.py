@@ -295,10 +295,10 @@ class JLCPCBClient:
         return None
 
 
-def test_jlcpcb_connection(
+def check_jlcpcb_connection(
     app_id: str | None = None, access_key: str | None = None, secret_key: str | None = None
 ) -> bool:
-    """Test JLCPCB API connection.
+    """Check JLCPCB API connection.
 
     Args:
         app_id: Optional App ID (uses env var if not provided)
@@ -324,7 +324,7 @@ if __name__ == "__main__":
     # Test the JLCPCB client
     logging.basicConfig(level=logging.INFO)
 
-    if test_jlcpcb_connection():
+    if check_jlcpcb_connection():
         jlcpcb_client = JLCPCBClient()
         response_data = jlcpcb_client.fetch_parts_page()
         component_parts = response_data.get("componentInfos", [])
