@@ -1222,7 +1222,7 @@ class IPCBoardAPI(BoardAPI):
                         "name": zone.name if hasattr(zone, "name") else "",
                         "net": zone.net.name if zone.net else "",
                         "priority": zone.priority if hasattr(zone, "priority") else 0,
-                        "layers": [str(l) for l in zone.layers] if hasattr(zone, "layers") else [],
+                        "layers": [str(layer) for layer in zone.layers] if hasattr(zone, "layers") else [],
                         "filled": zone.filled if hasattr(zone, "filled") else False,
                         "id": str(zone.id) if hasattr(zone, "id") else ""
                     })
