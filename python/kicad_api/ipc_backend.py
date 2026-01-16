@@ -13,6 +13,7 @@ Key Benefits over SWIG:
 - Multi-language support
 """
 from collections.abc import Callable
+from dataclasses import dataclass
 import logging
 import os
 from pathlib import Path
@@ -288,6 +289,42 @@ class IPCBackend(KiCADBackend):
             raise NotConnectedError
 
         return IPCBoardAPI(self._kicad, self._notify_change)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ZoneConfig:
+    """Configuration for copper pour zones.
+
+    Using kw_only=True prevents positional argument errors when multiple
+    fields have the same type. Using frozen=True makes instances immutable.
+
+    Best practices:
+    - Reduces function arguments from 8 to 2
+    - Groups related parameters logically
+    - Type-safe with dataclass validation
+    - Self-documenting configuration object
+    """
+
+    layer: str = "F.Cu"
+    """PCB layer (F.Cu, B.Cu, In1.Cu, etc.)"""
+
+    net_name: str | None = None
+    """Net to connect the zone to (e.g., 'GND', 'VCC')"""
+
+    clearance: float = 0.5
+    """Clearance from other copper in mm"""
+
+    min_thickness: float = 0.25
+    """Minimum copper thickness in mm"""
+
+    priority: int = 0
+    """Zone priority (higher value fills first)"""
+
+    fill_mode: str = "solid"
+    """Fill mode: 'solid' or 'hatched'"""
+
+    name: str = ""
+    """Optional zone name for identification"""
 
 
 class IPCBoardAPI(BoardAPI):
@@ -1129,13 +1166,7 @@ class IPCBoardAPI(BoardAPI):
     def add_zone(
         self,
         points: list[dict[str, float]],
-        layer: str = "F.Cu",
-        net_name: str | None = None,
-        clearance: float = 0.5,
-        min_thickness: float = 0.25,
-        priority: int = 0,
-        fill_mode: str = "solid",
-        name: str = ""
+        config: ZoneConfig | None = None,
     ) -> bool:
         """Add a copper pour zone to the board.
 
@@ -1143,14 +1174,28 @@ class IPCBoardAPI(BoardAPI):
 
         Args:
             points: List of points defining the zone outline, e.g. [{"x": 0, "y": 0}, ...]
-            layer: Layer name (F.Cu, B.Cu, etc.)
-            net_name: Net to connect the zone to (e.g., "GND")
-            clearance: Clearance from other copper in mm
-            min_thickness: Minimum copper thickness in mm
-            priority: Zone priority (higher = fills first)
-            fill_mode: "solid" or "hatched"
-            name: Optional zone name
+            config: Zone configuration (defaults to ZoneConfig() with standard values)
+
+        Returns:
+            True if zone was added successfully, False otherwise
+
+        Example:
+            >>> config = ZoneConfig(layer="B.Cu", net_name="GND", clearance=0.3)
+            >>> board_api.add_zone(points=[{"x": 0, "y": 0}, ...], config=config)
         """
+        # Use default config if none provided
+        if config is None:
+            config = ZoneConfig()
+
+        # Extract config values for readability
+        layer = config.layer
+        net_name = config.net_name
+        clearance = config.clearance
+        min_thickness = config.min_thickness
+        priority = config.priority
+        fill_mode = config.fill_mode
+        name = config.name
+
         try:
             from kipy.board_types import Zone, ZoneFillMode, ZoneType
             from kipy.common_types import PolygonWithHoles

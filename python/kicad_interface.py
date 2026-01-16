@@ -1436,8 +1436,11 @@ class KiCADInterface:
                 {"x": point.get("x", 0), "y": point.get("y", 0)} for point in points
             ]
 
-            success = self.ipc_board_api.add_zone(
-                points=formatted_points,
+            # Import ZoneConfig for parameter object pattern
+            from kicad_api.ipc_backend import ZoneConfig  # noqa: PLC0415
+
+            # Create zone configuration
+            zone_config = ZoneConfig(
                 layer=layer,
                 net_name=net,
                 clearance=clearance,
@@ -1445,6 +1448,11 @@ class KiCADInterface:
                 priority=priority,
                 fill_mode=fill_type,
                 name=name,
+            )
+
+            success = self.ipc_board_api.add_zone(
+                points=formatted_points,
+                config=zone_config,
             )
 
             return {
