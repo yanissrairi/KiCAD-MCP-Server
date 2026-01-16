@@ -1520,8 +1520,21 @@ class KiCADInterface:
             size = params.get("size", 1.0)
             rotation = params.get("rotation", 0)
 
+            # Import TextConfig for parameter object pattern
+            from kicad_api.ipc_backend import TextConfig  # noqa: PLC0415
+
+            # Create text configuration
+            text_config = TextConfig(
+                x=x,
+                y=y,
+                layer=layer,
+                size=size,
+                rotation=rotation,
+            )
+
             success = self.ipc_board_api.add_text(
-                text=text, x=x, y=y, layer=layer, size=size, rotation=rotation
+                text=text,
+                config=text_config,
             )
 
             return {
@@ -2085,13 +2098,16 @@ class KiCADInterface:
             return {"success": False, "message": "IPC backend not available"}
 
         try:
-            success = self.ipc_board_api.add_text(
-                text=params.get("text", ""),
+            text_config = TextConfig(
                 x=params.get("x", 0),
                 y=params.get("y", 0),
                 layer=params.get("layer", "F.SilkS"),
                 size=params.get("size", 1.0),
                 rotation=params.get("rotation", 0),
+            )
+            success = self.ipc_board_api.add_text(
+                text=params.get("text", ""),
+                config=text_config,
             )
             return {
                 "success": success,

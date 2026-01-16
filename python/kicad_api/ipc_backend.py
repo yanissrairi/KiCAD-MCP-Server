@@ -327,6 +327,36 @@ class ZoneConfig:
     """Optional zone name for identification"""
 
 
+@dataclass(frozen=True, kw_only=True)
+class TextConfig:
+    """Configuration for board text annotations.
+
+    Using kw_only=True prevents positional argument errors when multiple
+    fields have the same type. Using frozen=True makes instances immutable.
+
+    Best practices:
+    - Reduces function arguments from 6 to 2
+    - Groups related parameters logically (position, appearance)
+    - Type-safe with dataclass validation
+    - Self-documenting configuration object
+    """
+
+    x: float = 0.0
+    """X position in mm"""
+
+    y: float = 0.0
+    """Y position in mm"""
+
+    layer: str = "F.SilkS"
+    """Target layer (F.SilkS, B.SilkS, F.Cu, B.Cu, etc.)"""
+
+    size: float = 1.0
+    """Text size in mm (NOTE: Not currently configurable via kipy API)"""
+
+    rotation: float = 0.0
+    """Rotation angle in degrees"""
+
+
 class IPCBoardAPI(BoardAPI):
     """Board API implementation for IPC backend.
 
@@ -998,21 +1028,14 @@ class IPCBoardAPI(BoardAPI):
     def add_text(
         self,
         text: str,
-        x: float,
-        y: float,
-        layer: str = "F.SilkS",
-        size: float = 1.0,
-        rotation: float = 0
+        config: TextConfig | None = None,
     ) -> bool:
         """Add text to the board.
 
         Args:
             text: Text content to add.
-            x: X position in mm.
-            y: Y position in mm.
-            layer: Target layer name.
-            size: Text size in mm (NOTE: Not currently configurable via kipy API).
-            rotation: Rotation angle in degrees.
+            config: Text configuration including position, layer, size, and rotation
+                   (defaults to TextConfig() with standard values).
 
         Returns:
             True if text was added successfully, False otherwise.
@@ -1021,7 +1044,22 @@ class IPCBoardAPI(BoardAPI):
             The size parameter is not currently used as kipy's BoardText API
             does not expose text size configuration in the current version.
             A warning will be logged if a non-default size is requested.
+
+        Example:
+            >>> config = TextConfig(x=10, y=20, layer="F.Cu", size=1.5, rotation=45)
+            >>> board_api.add_text("Hello KiCAD", config=config)
         """
+        # Use default config if none provided
+        if config is None:
+            config = TextConfig()
+
+        # Extract config values for readability
+        x = config.x
+        y = config.y
+        layer = config.layer
+        size = config.size
+        rotation = config.rotation
+
         try:
             from kipy.board_types import BoardText
             from kipy.geometry import Angle, Vector2
